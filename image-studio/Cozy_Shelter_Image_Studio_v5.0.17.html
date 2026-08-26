@@ -2300,6 +2300,13 @@ const APP_VERSION = 'v5.0.17';
     return originalMime;
   }
   function isSmartMode(){ return $('formatSelect').value === 'smart'; }
+  // Re-encoding into the exact same format with no resize/overlay is a pure
+  // compression attempt — if the encoder produces a bigger file than the
+  // source (common for already-optimized JPEGs), there's nothing gained by
+  // keeping it, so we fall back to the original file, same as smart mode does.
+  function canFallBackToOriginal(file, requestedMime){
+    return $('resizeMode').value === 'original' && !wm.enabled && !imageOverlay.enabled && requestedMime === normalizedImageMime(file);
+  }
   function requireReencodeMode(){
     if(!isSmartMode()) return;
     $('formatSelect').value = 'original-format';
@@ -3078,7 +3085,7 @@ const APP_VERSION = 'v5.0.17';
     }
     outputWidth = size.w;
     outputHeight = size.h;
-    outputUsesOriginalFile = Boolean(smartMode && blob && sourceFile && blob.size >= sourceFile.size);
+    outputUsesOriginalFile = Boolean(blob && sourceFile && blob.size >= sourceFile.size && (smartMode || canFallBackToOriginal(sourceFile, requestedMime)));
     outputBlob = outputUsesOriginalFile ? sourceFile : blob;
     outputMime = actualMime;
   }
@@ -3380,7 +3387,7 @@ const APP_VERSION = 'v5.0.17';
         if(runId !== batchRunId) return;
 
         const base = buildDownloadBaseName(file.name, 'image-' + (i+1));
-        const smartOriginalKept = Boolean(smartMode && blob.size >= file.size);
+        const smartOriginalKept = Boolean(blob.size >= file.size && (smartMode || canFallBackToOriginal(file, mime)));
         const finalBlob = smartOriginalKept ? file : blob;
         batchItems.push({
           name: smartOriginalKept ? file.name : base + '.' + extForMime(outMime),
