@@ -1,0 +1,1777 @@
+<!doctype html>
+<!--
+  ════════════════════════════════════════════════════════════
+  Cozy Shelter Studio · Reminder Studio v0.1.3 Beta
+  Copyright © 2026 Hanrim · Cozy Shelter. All rights reserved.
+
+  A local birthday / anniversary reminder tool. Import a contacts CSV
+  export (or add rows by hand), and it surfaces who's coming up next with
+  a ready-to-copy message — you still send it yourself, from whatever app
+  you like.
+
+  Header/footer/modal shell ported from Lotus Studio's shared brand-lockup
+  + head-actions + footer-row + license-modal pattern (see that file for
+  the full history of this shell). Unlike every other tool in this family,
+  the optional "AI personalization" feature makes a direct network call to
+  a provider the user configures with their own API key — this is
+  disclosed explicitly in the About · Usage modal below. Everything else
+  (CSV import, entries, settings) stays 100% local to the browser tab.
+-->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title id="docTitle">Cozy Shelter Reminder Studio</title>
+<style>
+  :root{
+    /* Cozy Shelter Studio Design Tokens v1.0.0 — shared product shell */
+    --cs-ink:#20242a; --cs-ink-subtle:#606873;
+    --cs-background:#fdfdfc; --cs-panel:#ffffff; --cs-surface-soft:#f7f7f5;
+    --cs-line:#d9dde4; --cs-control-line:#e1e3e6;
+    --cs-accent:#4f6fe8; --cs-accent-strong:#3d58c4;
+    --cs-focus-ring:rgba(79,111,232,.18);
+    --cs-success:#28734b; --cs-warning:#92651b; --cs-danger:#cf4b56;
+    --cs-radius:12px;
+    --cs-shadow-soft:0 1px 2px rgba(20,27,38,.04),0 8px 24px rgba(20,27,38,.055);
+    --cs-font-sans:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --cs-ci-ink:#20242a;
+  }
+  html[data-a11y="safe"]{
+    --cs-accent:#0d7f8c; --cs-accent-strong:#0a6470;
+    --cs-warning:#8a5a00; --cs-danger:#b23b23;
+  }
+  html[data-a11y="contrast"]{
+    --cs-background:#fff; --cs-panel:#fff; --cs-surface-soft:#fff;
+    --cs-line:#111; --cs-control-line:#111;
+    --cs-ink:#000; --cs-ink-subtle:#202020;
+    --cs-accent:#1746c8; --cs-accent-strong:#0d2f8c;
+    --cs-warning:#7a4b00; --cs-danger:#a3121f;
+  }
+  *{box-sizing:border-box}
+  html{color-scheme:light}
+  body{margin:0;background:var(--cs-background);color:var(--cs-ink);font:14px/1.5 var(--cs-font-sans);}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer}
+  h1,h2,h3{margin:0}
+  select:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
+    border-color:var(--cs-accent);box-shadow:0 0 0 3px var(--cs-focus-ring);outline:none;
+  }
+
+  /* ---------- Header (shared shell — metrics ported 1:1 from Visual Review /
+     Lotus Studio, the family's source of truth for these values) ---------- */
+  header{
+    position:sticky;top:0;z-index:1000;
+    width:min(1248px,calc(100% - 48px));margin-inline:auto;
+    min-height:88px;display:flex;align-items:center;gap:20px;
+    padding-block:20px;background:rgba(253,253,252,.96);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    transition:box-shadow .18s ease;overflow-anchor:none;
+  }
+  body>header::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;
+    height:1px;background:var(--cs-line);pointer-events:none;
+  }
+  header.is-scrolled{box-shadow:0 7px 18px rgba(20,27,38,.07);}
+  .ci-brand-lockup{display:flex;align-items:center;gap:14px;min-width:0;flex:0 1 auto}
+  .ci-symbol{width:34px;height:34px;flex:0 0 34px;color:var(--cs-ci-ink)}
+  .brand{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
+  .brand small{display:block;color:var(--cs-ink-subtle);font-size:10.5px;font-weight:750;letter-spacing:.15em;text-transform:uppercase;}
+  .brand-title-row{display:flex;align-items:center;gap:9px;}
+  .brand h1{margin:0;font-size:25px;font-weight:700;line-height:1.25;letter-spacing:-.035em;}
+  .beta-badge{
+    display:inline-flex;align-items:center;min-height:19px;margin:0;padding:2px 7px;
+    border:1px solid color-mix(in srgb,var(--cs-accent) 28%,transparent);
+    border-radius:999px;background:color-mix(in srgb,var(--cs-accent) 8%,transparent);
+    color:var(--cs-accent-strong);font-size:10px;font-weight:800;line-height:1;letter-spacing:.08em;vertical-align:middle;
+  }
+  .tagline{margin:0;color:var(--cs-ink-subtle);font-size:13.5px;line-height:1.5;}
+  .head-actions{margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .view-mode-control{position:relative;display:flex;align-items:center;width:142px;height:38px;border:1px solid var(--cs-line);border-radius:8px;background:var(--cs-panel);overflow:hidden;}
+  .view-mode-icon{position:absolute;left:10px;z-index:1;color:var(--cs-ink-subtle);font-size:14px;line-height:1;pointer-events:none;}
+  .view-mode-control select{width:100%;height:36px;padding:6px 27px 6px 30px;border:0;background:transparent;color:var(--cs-ink-subtle);font-size:12.5px;font-weight:650;box-shadow:none;cursor:pointer;outline:0;}
+  .lang-switch{display:flex;gap:2px;padding:2px;border:1px solid var(--cs-line);border-radius:8px;background:#eef0f4;}
+  .lang-btn{min-width:40px;width:auto;height:auto;min-height:34px;padding:6px 10px;border:0;border-radius:6px;background:transparent;color:var(--cs-ink-subtle);font-size:14px;font-weight:700;}
+  .lang-btn.active{background:#fff;color:var(--cs-accent-strong);box-shadow:0 1px 3px rgba(20,27,38,.12);}
+  .help-open-btn{min-height:38px;padding:6px 11px;border:1px solid var(--cs-line);border-radius:8px;background:#fff;color:var(--cs-ink-subtle);font-size:12.5px;font-weight:700;}
+  .help-open-btn:hover{border-color:#b9c1ce;background:var(--cs-surface-soft);}
+  /* Fixed widths on the main action buttons so switching KO/EN never reflows the layout
+     (measured against both languages' rendered text; see Cozy Shelter Studio house style). */
+  #openHelpBtn{width:106px;}
+  #addEntryBtn{width:136px;}
+  #chooseCsvBtn{width:136px;}
+  .message-btn{width:112px;}
+  .edit-btn{width:80px;}
+  .ack-btn{width:60px;}
+
+  /* ---------- Workspace ---------- */
+  .workspace{max-width:1248px;margin:0 auto;padding:24px 20px 48px;display:flex;flex-direction:column;gap:22px;}
+  .panel{background:var(--cs-panel);border:1px solid var(--cs-line);border-radius:var(--cs-radius);box-shadow:var(--cs-shadow-soft);padding:20px 22px;}
+  .dashboard-panel{border-color:color-mix(in srgb,var(--cs-accent) 15%,var(--cs-line));box-shadow:0 12px 28px rgba(20,27,38,.065);}
+  .secondary-panel{background:color-mix(in srgb,var(--cs-panel) 88%,var(--cs-surface-soft));box-shadow:0 7px 18px rgba(20,27,38,.035);}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+  .panel-head h2{font-size:15px;font-weight:750;}
+  .panel-desc{margin:2px 0 0;color:var(--cs-ink-subtle);font-size:12.5px;}
+  .btn{min-height:40px;padding:0 14px;border:1px solid var(--cs-line);border-radius:8px;background:#fff;color:var(--cs-ink);font-size:13px;font-weight:650;}
+  .btn:hover{border-color:var(--cs-accent);background:#f3f6ff;}
+  .btn-primary{min-height:40px;border:0;border-radius:9px;background:var(--cs-accent);color:#fff;font-size:13px;font-weight:700;padding:0 16px;box-shadow:0 5px 14px rgba(79,111,232,.18);}
+  .btn-primary:hover{background:var(--cs-accent-strong);}
+  .btn-ghost-danger{color:#9a3b42;border-color:#e3c6c8;}
+  .btn-ghost-danger:hover{background:#fdf3f3;border-color:#d68a90;}
+  .btn-sm{height:30px;padding:0 10px;font-size:12px;}
+
+  /* ---------- Import panel ---------- */
+  .import-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .local-only-note{margin:8px 0 0;font-size:12.5px;color:#7a828d;}
+  .mapping-table-wrap{overflow-x:auto;margin-top:14px;border:1px solid var(--cs-line);border-radius:8px;}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--cs-line);text-align:left;white-space:nowrap;}
+  thead th{background:var(--cs-surface-soft);color:var(--cs-ink-subtle);font-weight:700;}
+  td select,td input{height:30px;padding:0 6px;border:1px solid var(--cs-control-line);border-radius:6px;background:#fff;font-size:12px;}
+  .candidate-name{min-width:100px;}
+  tr.cand-duplicate{background:color-mix(in srgb,var(--cs-warning) 6%,#fff);}
+  .hint{color:var(--cs-ink-subtle);font-size:12px;line-height:1.6;margin:10px 0 0;}
+
+  /* ---------- Dashboard ---------- */
+  .list-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .list-toolbar input,.list-toolbar select{height:36px;padding:0 10px;border:1px solid var(--cs-control-line);border-radius:8px;background:#fff;font-size:13px;}
+  .list-toolbar input{flex:1;min-width:140px;}
+  #filterSelect{width:140px;}
+  #sortSelect{width:142px;}
+  .entry-list{display:flex;flex-direction:column;gap:8px;}
+  .entry-card{
+    display:flex;align-items:center;gap:12px;padding:12px 14px;
+    border:1px solid var(--cs-line);border-radius:10px;background:var(--cs-surface-soft);
+    transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease;
+  }
+  .entry-card:hover{border-color:color-mix(in srgb,var(--cs-accent) 32%,var(--cs-line));box-shadow:0 5px 14px rgba(20,27,38,.055);transform:translateY(-1px);}
+  .entry-card.is-today{border-color:var(--cs-danger);background:color-mix(in srgb,var(--cs-danger) 7%,#fff);}
+  .entry-card.is-soon{border-color:var(--cs-warning);background:color-mix(in srgb,var(--cs-warning) 7%,#fff);}
+  .entry-card.is-acked{opacity:.7;}
+  .tag.ack-tag{background:color-mix(in srgb,var(--cs-success) 14%,#fff);color:var(--cs-success);}
+  .tag.milestone-tag{background:#f4e3b2;color:#7a5b00;font-weight:800;}
+  .entry-dday{display:grid;place-items:center;min-width:58px;min-height:32px;padding:0 8px;border-radius:999px;background:color-mix(in srgb,var(--cs-accent) 9%,#fff);text-align:center;font-weight:800;font-size:12px;color:var(--cs-accent-strong);}
+  .entry-card.is-today .entry-dday{background:color-mix(in srgb,var(--cs-danger) 12%,#fff);}
+  .entry-card.is-soon .entry-dday{background:color-mix(in srgb,var(--cs-warning) 13%,#fff);}
+  .entry-card.is-today .entry-dday{color:var(--cs-danger);}
+  .entry-card.is-soon .entry-dday{color:var(--cs-warning);}
+  .entry-main{flex:1;min-width:0;}
+  .entry-name{font-weight:700;font-size:13.5px;}
+  .entry-meta{color:var(--cs-ink-subtle);font-size:12px;margin-top:2px;}
+  .tag{display:inline-flex;padding:1px 7px;border-radius:999px;background:#eef0f4;color:var(--cs-ink-subtle);font-size:11px;font-weight:700;margin-right:6px;}
+  .entry-actions{display:flex;gap:6px;flex-shrink:0;}
+  .empty-state{display:flex;min-height:148px;padding:28px 18px;border:1px dashed var(--cs-control-line);border-radius:10px;background:var(--cs-surface-soft);text-align:center;color:var(--cs-ink-subtle);font-size:13px;align-items:center;justify-content:center;flex-direction:column;gap:8px;}
+  .empty-state strong{color:var(--cs-ink);font-size:14px;}
+  .empty-state span{max-width:440px;line-height:1.65;}
+  .empty-state .btn{margin-top:5px;}
+  .sample-hint{margin:0 0 12px;padding:9px 12px;border:1px solid var(--cs-line);border-radius:8px;background:var(--cs-surface-soft);color:var(--cs-ink-subtle);font-size:12px;text-align:left;}
+  .entry-card.is-sample{border-style:dashed;opacity:.72;cursor:pointer;user-select:none;-webkit-user-select:none;}
+  .entry-card.is-sample:hover{opacity:1;border-color:var(--cs-accent);}
+  .sample-badge{display:inline-flex;padding:1px 7px;border-radius:999px;background:#eef0f4;color:var(--cs-ink-subtle);font-size:11px;font-weight:700;margin-left:6px;}
+
+  /* ---------- Settings ---------- */
+  .set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;}
+  .set-field label{display:block;font-size:12px;color:var(--cs-ink-subtle);font-weight:700;margin-bottom:6px;}
+  .set-field input,.set-field select{width:100%;height:36px;padding:0 10px;border:1px solid var(--cs-control-line);border-radius:8px;background:#fff;}
+  .ai-block{margin-top:18px;padding:14px 15px;border:1px solid var(--cs-line);border-radius:10px;background:var(--cs-surface-soft);}
+  .ai-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+  .ai-toggle-copy{min-width:0;}
+  .ai-toggle-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .ai-toggle-title label{font-weight:700;font-size:13px;}
+  .ai-toggle-copy p{margin:4px 0 0;color:var(--cs-ink-subtle);font-size:12px;line-height:1.55;}
+  .optional-badge{display:inline-flex;padding:2px 7px;border:1px solid var(--cs-line);border-radius:999px;background:#fff;color:var(--cs-ink-subtle);font-size:10.5px;font-weight:750;}
+  .ai-toggle-row input[type=checkbox]{width:18px;height:18px;}
+  .ai-fields{display:none;margin-top:12px;}
+  .ai-fields.is-open{display:grid;}
+  .ai-disclosure{margin-top:10px;padding:10px 12px;border:1px solid var(--cs-line);border-radius:8px;background:var(--cs-surface-soft);color:var(--cs-ink-subtle);font-size:12px;line-height:1.6;min-height:61px;box-sizing:border-box;}
+  .data-block{margin-top:18px;padding-top:14px;border-top:1px solid var(--cs-line);}
+  .data-block-title label{font-weight:700;font-size:13px;}
+  .data-block p{margin:4px 0 0;color:var(--cs-ink-subtle);font-size:12px;line-height:1.55;}
+  .data-block-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+
+  /* ---------- Modals (shared license/help chrome) ---------- */
+  .modal[hidden]{display:none;}
+  .modal{position:fixed;inset:0;z-index:2200;display:grid;place-items:center;padding:24px;background:rgba(24,28,34,.68);backdrop-filter:blur(5px);}
+  .dialog{width:min(640px,calc(100vw - 48px));max-height:min(680px,calc(100vh - 48px));display:flex;flex-direction:column;background:#fff;border:1px solid var(--cs-line);border-radius:16px;box-shadow:0 24px 70px rgba(12,18,28,.28);overflow:hidden;}
+  .dialog.wide{width:min(760px,calc(100vw - 48px));}
+  .help-dialog{width:min(840px,calc(100vw - 48px));max-height:min(720px,calc(100vh - 48px));}
+  .help-layout{display:grid;grid-template-columns:150px minmax(0,1fr);overflow:hidden;flex:1;min-height:0;}
+  .help-nav{padding:20px 14px;border-right:1px solid var(--cs-line);background:var(--cs-surface-soft);overflow:auto;}
+  .help-nav a{display:block;padding:8px;border-radius:6px;color:var(--cs-ink-subtle);font-size:12.5px;font-weight:650;text-decoration:none;}
+  .help-nav a:hover,.help-nav a:focus-visible{background:#fff;color:var(--cs-accent-strong);}
+  .help-content{padding:22px 24px 28px;overflow:auto;scroll-behavior:smooth;}
+  .help-content h3{margin:28px 0 11px;padding-top:22px;border-top:1px solid var(--cs-line);font-size:15px;color:var(--cs-ink);scroll-margin-top:12px;}
+  .help-content h3:first-of-type{margin-top:0;padding-top:0;border-top:0;}
+  .help-content h4{margin:15px 0 5px;font-size:12.5px;color:var(--cs-ink);}
+  .help-content p,.help-content li{color:var(--cs-ink-subtle);font-size:13px;line-height:1.7;}
+  .help-content ol,.help-content ul{margin:0;padding-left:21px;}
+  .help-content li+li{margin-top:8px;}
+  .help-content .help-note{margin:14px 0 0;padding:11px 13px;border:1px solid var(--cs-line);border-radius:8px;background:var(--cs-surface-soft);}
+  .help-content .help-lead{margin:0 0 18px;color:var(--cs-ink);font-size:13.5px;line-height:1.75;}
+  .help-content .help-steps{list-style:none;counter-reset:help-step;margin:0;padding:0;}
+  .help-content .help-steps>li{counter-increment:help-step;position:relative;min-height:28px;padding-left:39px;}
+  .help-content .help-steps>li::before{content:counter(help-step);position:absolute;left:0;top:0;display:grid;width:26px;height:26px;place-items:center;border-radius:8px;background:var(--cs-accent);color:#fff;font-size:12px;font-weight:800;}
+  .help-content kbd{display:inline-block;min-width:25px;padding:2px 6px;border:1px solid var(--cs-control-line);border-bottom-width:2px;border-radius:5px;background:#fff;color:var(--cs-ink);font:600 11px/1.35 var(--cs-font-sans);text-align:center;}
+  .help-content pre{margin:10px 0 0;padding:10px 12px;border:1px solid var(--cs-line);border-radius:8px;background:var(--cs-ink);color:#f0ead9;font-size:11.5px;line-height:1.6;overflow-x:auto;white-space:pre-wrap;word-break:break-all;}
+  .help-content code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  @media (max-width:640px){
+    .help-layout{grid-template-columns:1fr;overflow:auto;}
+    .help-nav{display:flex;gap:3px;padding:10px;border-right:0;border-bottom:1px solid var(--cs-line);overflow:auto;}
+    .help-nav a{flex:0 0 auto;white-space:nowrap;}
+    .help-content{overflow:visible;padding:18px;}
+  }
+  @media (max-width:760px){
+    .workspace{padding:16px 12px 38px;gap:14px;}
+    .panel{padding:17px 15px;}
+    .panel-head{align-items:flex-start;}
+    #addEntryBtn{width:100%;}
+    .list-toolbar{display:grid;grid-template-columns:1fr 1fr;}
+    .list-toolbar input{grid-column:1/-1;width:100%;}
+    #filterSelect,#sortSelect{width:100%;min-width:0;}
+    .entry-card{align-items:flex-start;flex-wrap:wrap;gap:10px;}
+    .entry-main{min-width:calc(100% - 78px);padding-top:3px;}
+    .entry-actions{width:100%;padding-top:9px;border-top:1px solid color-mix(in srgb,var(--cs-line) 76%,transparent);}
+    .entry-actions .btn{flex:1;width:auto;}
+    .ai-toggle-row{align-items:flex-start;}
+  }
+  @media (prefers-reduced-motion:reduce){.entry-card{transition:none}.entry-card:hover{transform:none}}
+  .dialog-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--cs-line);}
+  .dialog-head h2{font-size:15px;font-weight:750;}
+  .dialog-close{border:0;background:transparent;font-size:20px;line-height:1;color:var(--cs-ink-subtle);padding:4px 6px;border-radius:6px;}
+  .dialog-close:hover{background:var(--cs-surface-soft);color:var(--cs-ink);}
+  .dialog-body{padding:22px;overflow:auto;}
+  .dialog-body h3{margin:0 0 10px;font-size:14px;font-weight:700;}
+  .dialog-body p{margin:0 0 14px;color:var(--cs-ink-subtle);font-size:13.5px;line-height:1.65;}
+  .dialog-section+.dialog-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--cs-line);}
+  .dialog-foot{display:flex;justify-content:flex-end;gap:8px;padding:16px 22px;border-top:1px solid var(--cs-line);}
+  #saveEntryBtn{width:68px;}
+  #cancelEntryBtn,#deleteEntryBtn{width:80px;}
+  #shuffleMessageBtn{width:90px;}
+  #copyMessageBtn{width:84px;}
+  .field-row{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:12px;}
+  .field-row.cols-3{grid-template-columns:repeat(3,1fr);}
+  .field-col label{display:block;font-size:12px;color:var(--cs-ink-subtle);font-weight:700;margin-bottom:6px;}
+  .field-col input,.field-col select{width:100%;height:36px;padding:0 10px;border:1px solid var(--cs-control-line);border-radius:8px;}
+  .radio-group{display:flex;gap:14px;align-items:center;height:36px;font-size:13px;}
+  .radio-group label{display:flex;align-items:center;gap:5px;font-weight:400;color:var(--cs-ink);margin:0;white-space:nowrap;}
+  .checkbox-inline{display:flex;align-items:center;gap:6px;height:36px;font-size:13px;font-weight:400;color:var(--cs-ink);margin:0;white-space:nowrap;}
+  .message-box{padding:16px;border:1px solid var(--cs-line);border-radius:10px;background:var(--cs-surface-soft);font-size:14px;line-height:1.7;min-height:80px;white-space:pre-wrap;}
+  .message-actions{display:flex;gap:8px;margin-top:12px;}
+
+  /* ---------- Footer / Toast ---------- */
+  .footer-row{
+    width:100%;box-sizing:border-box;margin:8px auto 0;max-width:1248px;
+    display:flex;justify-content:center;align-items:center;gap:7px;text-align:center;
+    padding:14px 20px 0;border-top:1px solid var(--cs-line);
+    color:#7a828d;font-size:12.5px;
+  }
+  .license-link{border:0;background:transparent;text-decoration:underline;text-underline-offset:3px;cursor:pointer;color:#69727d;font-size:12.5px;padding:0;font-family:inherit;}
+  .license-link:hover{color:var(--cs-accent-strong);}
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:rgba(20,24,31,.96);color:#fff;
+    padding:10px 18px;border-radius:10px;font-size:13px;box-shadow:0 10px 28px rgba(0,0,0,.22);z-index:3000;
+    opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+
+  @media (max-width:640px){
+    header{width:calc(100% - 32px);padding-inline:0;flex-wrap:wrap;}
+    .brand h1{font-size:20px;}
+    .workspace{padding:16px 12px 32px;}
+    .field-row,.field-row.cols-3{grid-template-columns:1fr;}
+    .entry-card{flex-wrap:wrap;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="ci-brand-lockup">
+    <svg class="ci-symbol" viewBox="0 0 100 100" role="img" aria-label="Cozy Shelter"><path fill="currentColor" d="M76 14C54 6 30 15 19 36 9 56 18 77 39 85c-9-10-11-22-7-34 7-21 28-33 49-26 2 1 4 1 6 2-2-6-6-11-11-13Z"/><path fill="currentColor" d="M68 47c10.5 0 19 8.5 19 19s-8.5 19-19 19-19-8.5-19-19 8.5-19 19-19Z"/></svg>
+    <div class="brand">
+      <small>Cozy Shelter</small>
+      <div class="brand-title-row"><h1 id="titleText">Reminder Studio</h1><span class="beta-badge">BETA</span></div>
+      <p class="tagline" id="taglineText">연락처에 적어둔 생일·기념일을 놓치지 않게 챙겨드려요</p>
+    </div>
+  </div>
+  <div class="head-actions">
+    <label class="view-mode-control" for="accessibilityMode">
+      <span class="view-mode-icon" aria-hidden="true">◐</span>
+      <select id="accessibilityMode" aria-label="View mode">
+        <option value="default" data-i18n="a11yDefault">기본</option>
+        <option value="safe" data-i18n="a11ySafe">색각 안전</option>
+        <option value="contrast" data-i18n="a11yContrast">고대비</option>
+      </select>
+    </label>
+    <div class="lang-switch" id="langToggle">
+      <button type="button" class="lang-btn active" id="langKoBtn" data-lang="ko">KR</button>
+      <button type="button" class="lang-btn" id="langEnBtn" data-lang="en">EN</button>
+    </div>
+    <button type="button" class="help-open-btn" id="openHelpBtn" data-i18n="helpBtn">? 사용 가이드</button>
+  </div>
+</header>
+
+<main class="workspace">
+
+  <!-- ── 대시보드 ─────────────────────────── -->
+  <section class="panel dashboard-panel">
+    <div class="panel-head">
+      <div>
+        <h2 data-i18n="dashTitle">다가오는 일정</h2>
+        <p class="panel-desc" data-i18n="dashDesc">오늘 기준으로 가까운 순서대로 보여드려요</p>
+      </div>
+      <button type="button" class="btn btn-primary" id="addEntryBtn" data-i18n="btnAddEntry">+ 직접 추가</button>
+    </div>
+    <div class="list-toolbar" id="listToolbar">
+      <input type="text" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="이름으로 검색">
+      <select id="filterSelect">
+        <option value="all" data-i18n="filterAll">전체</option>
+        <option value="today" data-i18n="filterToday">오늘</option>
+        <option value="7" data-i18n="filter7">7일 이내</option>
+        <option value="30" data-i18n="filter30">30일 이내</option>
+      </select>
+      <select id="sortSelect">
+        <option value="dday" data-i18n="sortDday">다가오는 순</option>
+        <option value="name" data-i18n="sortName">이름순</option>
+        <option value="relationship" data-i18n="sortRelationship">관계별</option>
+      </select>
+    </div>
+    <div class="entry-list" id="entryList"></div>
+  </section>
+
+  <!-- ── CSV 가져오기 ─────────────────────────── -->
+  <section class="panel secondary-panel">
+    <div class="panel-head">
+      <div>
+        <h2 data-i18n="importTitle">연락처 CSV 가져오기</h2>
+        <p class="panel-desc" data-i18n="importDesc">구글 연락처 등에서 내보낸 CSV 파일을 읽어옵니다. 파일은 이 브라우저 밖으로 전송되지 않아요.</p>
+      </div>
+    </div>
+    <div class="import-row">
+      <button type="button" class="btn" id="chooseCsvBtn" data-i18n="btnChooseCsv">CSV 파일 선택</button>
+      <input type="file" id="csvInput" accept=".csv,text/csv" hidden>
+      <span id="csvFileName" class="panel-desc"></span>
+    </div>
+    <p class="local-only-note" data-i18n="localOnlyMessage">브라우저에서만 처리되며 외부로 전송되지 않아요.</p>
+    <div id="mappingSection" hidden>
+      <p class="hint" data-i18n="mappingHint">각 열이 어떤 정보인지 지정해주세요. "메모"로 지정하면 생일·기념일 키워드가 있는 문장에서 날짜를 자동으로 찾아봅니다.</p>
+      <div class="mapping-table-wrap"><table id="mappingTable"></table></div>
+      <div class="import-row" style="margin-top:12px;">
+        <button type="button" class="btn btn-primary" id="buildCandidatesBtn" data-i18n="btnBuildCandidates">미리보기 만들기</button>
+      </div>
+    </div>
+    <div id="candidatesSection" hidden style="margin-top:18px;">
+      <p class="hint" data-i18n="candidatesHint">가져올 항목을 확인하고 필요하면 수정한 뒤 추가하세요.</p>
+      <div class="mapping-table-wrap"><table id="candidatesTable"></table></div>
+      <div class="import-row" style="margin-top:12px;">
+        <button type="button" class="btn btn-primary" id="importSelectedBtn" data-i18n="btnImportSelected">선택 항목 추가</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 설정 ─────────────────────────── -->
+  <section class="panel secondary-panel">
+    <div class="panel-head">
+      <div>
+        <h2 data-i18n="settingsTitle">설정</h2>
+      </div>
+    </div>
+    <div class="set-grid">
+      <div class="set-field">
+        <label data-i18n="leadDaysLabel">미리 알림 기준 (일)</label>
+        <input type="number" id="leadDaysInput" min="0" max="60" value="7">
+      </div>
+    </div>
+    <div class="ai-block">
+      <div class="ai-toggle-row">
+        <div class="ai-toggle-copy">
+          <div class="ai-toggle-title">
+            <label for="aiEnableCheckbox" data-i18n="aiToggleLabel">AI로 매번 다른 문구 생성</label>
+            <span class="optional-badge" data-i18n="optionalBadge">선택 기능</span>
+          </div>
+          <p data-i18n="aiSummary">기본 문구만으로도 모든 기능을 사용할 수 있어요.</p>
+        </div>
+        <input type="checkbox" id="aiEnableCheckbox">
+      </div>
+      <div class="ai-fields" id="aiFields">
+        <div class="set-field">
+          <label data-i18n="aiProviderLabel">제공사</label>
+          <select id="aiProviderSelect">
+            <option value="anthropic">Claude (Anthropic)</option>
+            <option value="openai">OpenAI</option>
+            <option value="gemini">Gemini (Google)</option>
+            <option value="grok">Grok (xAI)</option>
+          </select>
+        </div>
+        <div class="set-field">
+          <label data-i18n="aiKeyLabel">API 키</label>
+          <input type="password" id="aiKeyInput" autocomplete="off" placeholder="sk-...">
+        </div>
+        <div class="set-field">
+          <label data-i18n="aiModelLabel">모델명 (선택, 비워두면 기본값)</label>
+          <input type="text" id="aiModelInput" placeholder="예: claude-haiku-4-5-20251001, gemini-2.0-flash 등">
+        </div>
+      </div>
+      <p class="ai-disclosure" data-i18n="aiDisclosure">이 기능을 켜면 문구를 새로 만들 때마다 브라우저가 위에서 선택한 제공사(Claude 등)로 직접 요청을 보내요. 이 툴은 서버 없이 파일 하나로 브라우저에서 동작해서, 그 과정에서 저희가 데이터를 볼 수 있는 경로 자체가 없어요. API 키는 이 브라우저에만 저장되고, 끄면 항상 무료 고정 문구만 사용해요.</p>
+    </div>
+    <div class="data-block">
+      <div class="data-block-title">
+        <label data-i18n="dataManageTitle">데이터 백업</label>
+      </div>
+      <p data-i18n="dataManageDesc">등록한 일정은 이 브라우저에만 저장돼요. 다른 기기로 옮기거나 브라우저 데이터가 지워질 상황을 대비해 미리 내보내두세요.</p>
+      <div class="data-block-actions">
+        <button type="button" class="btn btn-sm" id="exportDataBtn" data-i18n="btnExportData">내보내기 (JSON)</button>
+        <button type="button" class="btn btn-sm" id="importDataBtn" data-i18n="btnImportData">가져오기 (JSON)</button>
+        <input type="file" id="importDataInput" accept="application/json" hidden>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer-row">
+    <button type="button" class="license-link" id="openLicensesBtn" data-i18n="footerLicense">About · 이용 안내</button>
+    <span aria-hidden="true">·</span>
+    <span>Reminder Studio <span id="footVersion"></span><span class="beta-badge" style="margin-left:5px;">BETA</span></span>
+  </div>
+</main>
+
+<!-- 항목 추가/수정 모달 -->
+<div class="modal" id="entryModal" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="entryModalTitle">
+    <header class="dialog-head">
+      <h2 id="entryModalTitle" data-i18n="entryModalTitleAdd">직접 추가</h2>
+      <button type="button" class="dialog-close" id="closeEntryModalBtn" aria-label="닫기">&times;</button>
+    </header>
+    <div class="dialog-body">
+      <div class="field-row">
+        <div class="field-col"><label data-i18n="fieldName">이름</label><input type="text" id="entryName"></div>
+        <div class="field-col">
+          <label data-i18n="fieldRelationship">관계</label>
+          <input type="text" id="entryRelationship" list="relationshipList" autocomplete="off" data-i18n-placeholder="relationshipPlaceholder" placeholder="예: 가족, 친구, 선생님...">
+
+        </div>
+      </div>
+      <div class="field-row cols-3">
+        <div class="field-col">
+          <label data-i18n="fieldEventType">종류</label>
+          <select id="entryEventType">
+            <option value="birthday" data-i18n="typeBirthday">생일</option>
+            <option value="anniversary" data-i18n="typeAnniversary">기념일</option>
+          </select>
+        </div>
+        <div class="field-col"><label data-i18n="fieldMonth">월</label><input type="number" id="entryMonth" min="1" max="12"></div>
+        <div class="field-col"><label data-i18n="fieldDay">일</label><input type="number" id="entryDay" min="1" max="31"></div>
+      </div>
+      <div class="field-row" id="calendarTypeRow">
+        <div class="field-col">
+          <label data-i18n="calendarTypeLabel">달력 기준</label>
+          <div class="radio-group">
+            <label><input type="radio" name="entryCalendarType" value="solar" id="calSolarRadio" checked> <span data-i18n="calSolar">양력</span></label>
+            <label><input type="radio" name="entryCalendarType" value="lunar" id="calLunarRadio"> <span data-i18n="calLunar">음력</span></label>
+          </div>
+        </div>
+        <div class="field-col" id="leapMonthField" hidden>
+          <label data-i18n="leapMonthLabel">윤달</label>
+          <label class="checkbox-inline"><input type="checkbox" id="entryLeapMonth"> <span data-i18n="leapMonthHint">이 달이 윤달이에요</span></label>
+        </div>
+      </div>
+      <p class="hint" id="lunarRangeHint" hidden data-i18n="lunarRangeHint">음력 계산은 1900~2050년 범위만 지원돼요</p>
+      <div class="field-row">
+        <div class="field-col"><label data-i18n="fieldYear">연도 (선택)</label><input type="number" id="entryYear" min="1900" max="2100" placeholder="비워도 됩니다"></div>
+        <div class="field-col"><label data-i18n="fieldLeadDays">미리 알림 (일, 비워두면 기본값)</label><input type="number" id="entryLeadDays" min="0" max="60"></div>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button type="button" class="btn btn-ghost-danger" id="deleteEntryBtn" data-i18n="btnDelete" hidden>삭제</button>
+      <button type="button" class="btn" id="cancelEntryBtn" data-i18n="btnCancel">취소</button>
+      <button type="button" class="btn btn-primary" id="saveEntryBtn" data-i18n="btnSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="relationshipList"></datalist>
+
+<!-- 메시지 초안 모달 -->
+<div class="modal" id="messageModal" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="messageModalTitle">
+    <header class="dialog-head">
+      <h2 id="messageModalTitle" data-i18n="messageModalTitle">메시지 초안</h2>
+      <button type="button" class="dialog-close" id="closeMessageModalBtn" aria-label="닫기">&times;</button>
+    </header>
+    <div class="dialog-body">
+      <div class="message-box" id="messageBox"></div>
+      <div class="message-actions">
+        <button type="button" class="btn" id="shuffleMessageBtn" data-i18n="btnShuffle">다른 문구</button>
+        <button type="button" class="btn btn-primary" id="copyMessageBtn" data-i18n="btnCopy">복사하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 사용 가이드 모달 -->
+<div class="modal" id="helpModal" hidden>
+  <div class="dialog wide help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+    <header class="dialog-head">
+      <h2 id="helpModalTitle" data-i18n="helpTitle">Reminder Studio 사용 가이드</h2>
+      <button type="button" class="dialog-close" id="closeHelpBtn" aria-label="닫기">&times;</button>
+    </header>
+    <div class="help-layout" id="helpLayout"></div>
+  </div>
+</div>
+
+<!-- About · 이용 안내 모달 -->
+<div class="modal" id="licenseModal" hidden>
+  <div class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="licenseModalTitle">
+    <header class="dialog-head">
+      <h2 id="licenseModalTitle" data-i18n="licenseTitle">About · 이용 안내</h2>
+      <button type="button" class="dialog-close" id="closeLicensesBtn" aria-label="닫기">&times;</button>
+    </header>
+    <div class="dialog-body">
+      <h3>Cozy Shelter Reminder Studio <span id="licenseVersion"></span> <span class="beta-badge">BETA</span></h3>
+      <p id="licenseIntro" data-i18n="licenseIntro">연락처 CSV를 읽어 생일·기념일을 챙겨주는 로컬 도구입니다. 실제 메시지 발송은 하지 않으며, 문구를 복사해서 직접 보내는 방식이에요.</p>
+      <div class="dialog-section">
+        <h3 id="licensePrivacyTitle" data-i18n="licensePrivacyTitle">개인정보 처리 방식</h3>
+        <p id="licensePrivacyDesc" data-i18n="licensePrivacyDesc">가져온 CSV와 입력한 항목은 전부 이 브라우저의 localStorage에만 저장되며, 어디로도 전송되지 않습니다. "매일 자동 확인"을 쓰고 싶다면 README의 작업 스케줄러 안내를 참고하세요 — 이 파일을 매일 정해진 시각에 브라우저로 열어주는 설정입니다.</p>
+      </div>
+      <div class="dialog-section">
+        <h3 id="licenseNetworkTitle" data-i18n="licenseNetworkTitle">유일한 예외: AI 개인화 기능</h3>
+        <p id="licenseNetworkDesc" data-i18n="licenseNetworkDesc">설정에서 "AI로 매번 다른 문구 생성"을 켜고 본인의 API 키를 입력하면, 문구를 만들 때마다 선택한 제공사(Claude, OpenAI, Gemini, Grok 중 하나)로 브라우저가 직접 요청을 보냅니다. 이 툴은 애초에 서버 없이 파일 하나로 브라우저에서 동작하기 때문에, 저희가 그 데이터를 중간에서 볼 수 있는 경로 자체가 없어요. 이 저장소의 다른 툴들과 달리 이 기능만 네트워크를 사용하며, 끄면 항상 무료 고정 문구만 사용됩니다. API 키는 이 브라우저에만 저장됩니다.</p>
+      </div>
+      <div class="dialog-section">
+        <h3 id="licenseLunarTitle" data-i18n="licenseLunarTitle">음력 생일 계산 데이터 출처</h3>
+        <p id="licenseLunarDesc">음력 생일의 다음 발생일 계산(1900~2050년)에는 한국천문연구원(KASI)의 음양력 계산 데이터를 가공한 <a class="license-site-link" href="https://github.com/urstory/manseryeok-js" target="_blank" rel="noopener noreferrer">urstory/manseryeok-js</a>(MIT License)에서 추출한 변환 테이블을 사용합니다. 원본 라이브러리를 그대로 포함하지 않고, 필요한 데이터만 이 파일 안에 직접 담았습니다.</p>
+      </div>
+      <div class="dialog-section">
+        <h3 id="licenseCopyrightTitle" data-i18n="licenseCopyrightTitle">저작권과 이용 조건</h3>
+        <p id="licenseCopyrightDesc" data-i18n="licenseCopyrightDesc">Copyright © 2026 Hanrim · Cozy Shelter. All rights reserved. 배포된 도구는 그대로 사용할 수 있습니다. 소스 코드의 수정·재배포·판매 또는 기타 상업적 이용은 저작권자의 사전 허락이 필요합니다.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  var I18N = {
+    ko:{
+      title:'Reminder Studio',
+      tagline:'연락처에 적어둔 생일·기념일을 놓치지 않게 챙겨드려요',
+      footerLicense:'About · 이용 안내',
+      a11yDefault:'기본', a11ySafe:'색각 안전', a11yContrast:'고대비',
+      helpBtn:'? 사용 가이드', helpTitle:'Reminder Studio 사용 가이드', closeLabel:'닫기',
+      helpHtml:'<nav class="help-nav" aria-label="도움말 목차"><a href="#helpStart">3분 빠른 시작</a><a href="#helpImport">직접 추가와 CSV</a><a href="#helpDashboard">일정 관리</a><a href="#helpMilestone">특별한 생일·기념일</a><a href="#helpMessage">메시지 초안</a><a href="#helpLunar">음력 생일</a><a href="#helpAi">AI와 개인정보</a><a href="#helpSchedule">매일 자동 확인</a><a href="#helpKeyboard">키보드·접근성</a><a href="#helpTrouble">문제 해결·데이터</a></nav>' +
+        '<div class="help-content">' +
+        '<p class="help-lead"><strong>목차</strong><br>처음이라면 ‘3분 빠른 시작’부터 따라 해보세요. 이미 일정을 등록했다면 왼쪽 목차에서 필요한 항목으로 바로 이동할 수 있습니다.</p>' +
+        '<h3 id="helpStart">3분 빠른 시작</h3>' +
+        '<p>Reminder Studio는 연락처의 생일·기념일을 가까운 순서로 보여주고, 직접 보낼 메시지 초안을 준비하는 로컬 도구입니다.</p>' +
+        '<ol class="help-steps"><li><strong>일정을 등록하세요.</strong><br>소수라면 ‘+ 직접 추가’, 연락처가 많다면 ‘CSV 파일 선택’을 사용합니다.</li>' +
+        '<li><strong>다가오는 일정을 확인하세요.</strong><br>이름 검색, 기간 필터, 정렬 메뉴로 필요한 사람을 찾습니다.</li>' +
+        '<li><strong>메시지 초안을 복사하세요.</strong><br>‘메시지 초안’을 열고 문구를 고른 뒤 문자·카카오톡 등에 직접 붙여넣어 보냅니다.</li></ol>' +
+        '<p class="help-note"><strong>안심하세요.</strong> 가져온 CSV와 입력한 정보는 전부 이 브라우저에만 저장되고 어디로도 전송되지 않아요.</p>' +
+        '<h3 id="helpImport">직접 추가와 CSV 가져오기</h3>' +
+        '<h4>한 명씩 직접 추가</h4>' +
+        '<p>‘+ 직접 추가’에서 이름, 관계, 생일 또는 기념일, 날짜를 입력합니다. 연도와 개별 미리 알림 기간은 필요할 때만 넣어도 됩니다.</p>' +
+        '<p>관계는 가족·친구·연인·직장·기타 중에서 고를 수도 있지만, "선생님"·"거래처"처럼 원하는 대로 직접 입력해도 돼요. 한 번 입력한 값은 다음부터 자동완성으로 뜹니다.</p>' +
+        '<h4>CSV로 여러 명 가져오기</h4>' +
+        '<p class="help-note"><strong>구글 연락처</strong>라면 <strong>contacts.google.com</strong>에 접속해서 왼쪽 메뉴의 "내보내기"를 누르면 CSV로 저장돼요. <strong>아웃룩</strong>이라면 연락처 화면에서 "파일 → 열기/내보내기 → 가져오기/내보내기 → 다른 파일로 내보내기 → 쉼표로 구분된 값"을 선택하면 CSV가 만들어져요(웹 버전 Outlook.com은 연락처 목록의 "내보내기" 메뉴에서 바로 가능해요). 저장한 파일을 아래 "CSV 파일 선택"에서 불러오면 돼요.</p>' +
+        '<p>파일을 선택하면 각 열이 무엇을 의미하는지 직접 지정하는 화면이 나와요. "이름", "생일", "기념일", "관계", "메모" 중에서 고르면 되고, 구글 형식이면 자동으로 짐작해서 미리 선택해둬요.</p>' +
+        '<h4>메모에서 자동 인식</h4>' +
+        '<p>열을 "메모"로 지정하면 "생일"·"기념일" 같은 낱말이 들어간 문장에서 날짜를 찾아 후보로 보여줘요. 자동으로 등록되지 않고 확인 화면에서 직접 체크한 뒤에만 추가돼요.</p>' +
+        '<h4>중복된 사람이 있다면</h4>' +
+        '<p>이미 등록된 이름·종류·날짜와 겹치면 "이미 있음" 표시가 붙고, 건너뛰기·병합(빈 연도만 채우기)·그래도 추가 중에서 고를 수 있어요.</p>' +
+        '<h3 id="helpDashboard">다가오는 일정 관리</h3>' +
+        '<p>등록된 일정은 오늘 기준으로 가까운 순서대로 보여요. 이름으로 검색하거나, 기간(오늘/7일 이내/30일 이내)으로 걸러보거나, 이름순·관계별로 다시 정렬할 수 있어요.</p>' +
+        '<p>오늘인 일정은 눈에 띄게 강조되는데, 이미 챙겼다면 "완료" 버튼을 눌러 그날은 강조를 꺼둘 수 있어요.</p>' +
+        '<h3 id="helpMilestone">특별한 생일과 기념일</h3>' +
+        '<p>연도를 입력해두면 돌(1세)·환갑(60세)·칠순(70세)·팔순(80세) 같은 특별한 생일이나, 10·20·25·30·40·50주년처럼 딱 떨어지는 기념일에 카드에 금색 배지가 따로 뜨고, 메시지 문구에도 자동으로 반영돼요.</p>' +
+        '<h3 id="helpMessage">메시지 작성하기</h3>' +
+        '<p>일정 카드의 "메시지 초안" 버튼을 누르면 관계·종류에 맞는 문구가 하나 뜨고, "다른 문구"로 다른 버전을 볼 수 있어요. "복사하기"로 클립보드에 담은 뒤, 평소 쓰는 문자·카카오톡 등에 직접 붙여넣어 보내면 돼요. 이 툴이 대신 메시지를 보내주지는 않아요.</p>' +
+        '<h3 id="helpLunar">음력 생일</h3>' +
+        '<p>생일을 추가할 때 "달력 기준"에서 음력을 선택하면 매년 정확한 양력 날짜로 환산해서 알려줘요. 해당 달이 윤달이면 "윤달" 체크박스도 켜주세요 — 그 해에 실제 윤달이 없으면 평달로 자동 대체돼요. 기념일은 아직 양력만 지원해요.</p>' +
+        '<p class="help-note">음력 계산은 1900~2050년 범위만 지원돼요.</p>' +
+        '<h3 id="helpAi">AI 개인화 (선택)</h3>' +
+        '<p>설정에서 "AI로 매번 다른 문구 생성"을 켜고 본인의 API 키를 넣으면, 고정 문구 대신 매번 새로 만든 문구를 받을 수 있어요. Claude·OpenAI·Gemini·Grok 중 골라 쓸 수 있고, 키는 이 브라우저에만 저장돼요.</p>' +
+        '<p class="help-note"><strong>네트워크 사용 안내.</strong> AI 기능을 켠 경우에만 문구 생성을 위해 선택한 제공사로 브라우저가 직접 요청을 보냅니다. 끄면 네트워크 없이 무료 고정 문구만 사용합니다.</p>' +
+        '<h3 id="helpSchedule">매일 자동 확인</h3>' +
+        '<p>이 파일은 브라우저 탭을 열 때마다 "오늘" 기준으로 다시 계산하기 때문에, 생각날 때 열어도 충분해요. 매일 아침 자동으로 열리길 원한다면 사용 중인 운영체제에 맞는 방법을 참고하세요.</p>' +
+        '<h4>Windows</h4>' +
+        '<p>화면으로 등록하기: 시작 메뉴에서 "작업 스케줄러"를 검색해 실행한 뒤 "기본 작업 만들기…"를 누릅니다.</p>' +
+        '<ol class="help-steps"><li><strong>이름과 시각을 정합니다.</strong><br>이름은 원하는 대로(예: "Cozy Shelter Reminder Studio"), 트리거는 "매일"로 선택하고 원하는 시각(예: 오전 8시)을 정합니다.</li>' +
+        '<li><strong>실행할 프로그램을 지정합니다.</strong><br>"프로그램 시작"을 선택한 뒤, 평소 쓰는 브라우저의 실행 파일을 고르고, 인수(추가 옵션)로 이 HTML 파일의 전체 경로를 입력합니다.</li></ol>' +
+        '<p class="help-note"><strong>파일 경로 찾는 법.</strong> 탐색기에서 이 HTML 파일을 <kbd>Shift</kbd>를 누른 채 마우스 오른쪽 버튼으로 클릭하고 "경로로 복사"를 누르면, 붙여넣기(<kbd>Ctrl</kbd>+<kbd>V</kbd>)만으로 전체 경로를 넣을 수 있어요.</p>' +
+        '<p>또는 터미널에서 아래 명령을 브라우저 경로와 파일 경로만 실제 위치에 맞게 바꿔서 실행하세요.</p>' +
+        '<pre><code>schtasks /create /tn "CozyShelterReminderStudio" /tr "\\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\\" \\"C:\\경로\\Cozy_Shelter_Reminder_Studio.html\\"" /sc daily /st 08:00</code></pre>' +
+        '<p class="help-note">등록을 취소하려면 <code>schtasks /delete /tn "CozyShelterReminderStudio"</code>를 실행하세요.</p>' +
+        '<h4>macOS</h4>' +
+        '<p>화면으로 등록하기: 캘린더 앱에서 매일 반복되는 새 이벤트를 만들고, 알림 종류를 "파일 열기"로 바꾼 뒤 이 HTML 파일을 지정합니다.</p>' +
+        '<p>또는 터미널에서 <code>crontab -e</code>를 실행해 편집기를 연 뒤, 아래와 같은 줄을 추가하고 저장하세요(경로는 실제 위치로 바꾸세요).</p>' +
+        '<pre><code>0 8 * * * open -a "Google Chrome" "/경로/Cozy_Shelter_Reminder_Studio.html"</code></pre>' +
+        '<p class="help-note">등록을 취소하려면 <code>crontab -e</code>로 다시 열어서 해당 줄을 지우고 저장하세요.</p>' +
+        '<h3 id="helpKeyboard">키보드와 접근성</h3>' +
+        '<ul><li><kbd>Tab</kbd>과 <kbd>Shift</kbd> + <kbd>Tab</kbd>으로 버튼과 입력 항목 사이를 이동할 수 있습니다.</li><li><kbd>Enter</kbd> 또는 <kbd>Space</kbd>로 선택한 버튼을 실행할 수 있습니다.</li><li><kbd>Esc</kbd>를 누르면 열려 있는 도움말·편집·메시지 창을 닫습니다.</li><li>상단의 ‘기본’ 메뉴에서 색각 안전·고대비 모드를 선택할 수 있습니다.</li></ul>' +
+        '<h3 id="helpTrouble">문제 해결과 데이터 관리</h3>' +
+        '<h4>CSV 내용이 예상과 다를 때</h4><p>가져오기 전에 컬럼 매핑과 후보 목록을 다시 확인하세요. 메모에서 찾은 날짜는 자동 등록되지 않으므로 체크한 항목만 추가됩니다.</p>' +
+        '<h4>일정이 보이지 않을 때</h4><p>검색어를 지우고 기간 필터를 ‘전체’로 바꿔보세요. 같은 이름·종류·날짜는 중복 처리 화면에서 건너뛰었을 수 있습니다.</p>' +
+        '<h4>브라우저 데이터를 지우기 전에</h4><p>등록 정보는 현재 브라우저의 localStorage에 보관됩니다. 브라우저 사이트 데이터나 저장 공간을 지우면 일정과 설정도 사라질 수 있으니, 설정 하단의 "내보내기 (JSON)"으로 미리 백업해두세요. 다른 기기로 옮길 때도 같은 파일을 "가져오기 (JSON)"로 불러오면 그대로 복원돼요.</p>' +
+        '</div>',
+      dashTitle:'다가오는 일정', dashDesc:'오늘 기준으로 가까운 순서대로 보여드려요',
+      btnAddEntry:'+ 직접 추가',
+      importTitle:'연락처 CSV 가져오기',
+      importDesc:'구글 연락처 등에서 내보낸 CSV 파일을 읽어옵니다. 파일은 이 브라우저 밖으로 전송되지 않아요.',
+      btnChooseCsv:'CSV 파일 선택',
+      localOnlyMessage:'브라우저에서만 처리되며 외부로 전송되지 않아요.',
+      mappingHint:'각 열이 어떤 정보인지 지정해주세요. "메모"로 지정하면 생일·기념일 키워드가 있는 문장에서 날짜를 자동으로 찾아봅니다.',
+      btnBuildCandidates:'미리보기 만들기',
+      candidatesHint:'가져올 항목을 확인하고 필요하면 수정한 뒤 추가하세요.',
+      btnImportSelected:'선택 항목 추가',
+      settingsTitle:'설정', leadDaysLabel:'미리 알림 기준 (일)',
+      aiToggleLabel:'AI로 매번 다른 문구 생성', optionalBadge:'선택 기능',
+      aiSummary:'기본 문구만으로도 모든 기능을 사용할 수 있어요.',
+      aiProviderLabel:'제공사', aiKeyLabel:'API 키', aiModelLabel:'모델명 (선택, 비워두면 기본값)',
+      aiDisclosure:'이 기능을 켜면 문구를 새로 만들 때마다 브라우저가 위에서 선택한 제공사(Claude 등)로 직접 요청을 보내요. 이 툴은 서버 없이 파일 하나로 브라우저에서 동작해서, 그 과정에서 저희가 데이터를 볼 수 있는 경로 자체가 없어요. API 키는 이 브라우저에만 저장되고, 끄면 항상 무료 고정 문구만 사용해요.',
+      dataManageTitle:'데이터 백업',
+      dataManageDesc:'등록한 일정은 이 브라우저에만 저장돼요. 다른 기기로 옮기거나 브라우저 데이터가 지워질 상황을 대비해 미리 내보내두세요.',
+      btnExportData:'내보내기 (JSON)', btnImportData:'가져오기 (JSON)',
+      importDataConfirm:'가져오면 지금 등록된 일정이 파일 내용으로 전부 교체돼요. 계속할까요?',
+      toastExported:'백업 파일을 저장했어요', toastDataImported:'{n}개 일정을 가져왔어요',
+      toastImportInvalid:'올바른 백업 파일이 아니에요',
+      entryModalTitleAdd:'직접 추가', entryModalTitleEdit:'수정',
+      fieldName:'이름', fieldRelationship:'관계', fieldEventType:'종류', fieldMonth:'월', fieldDay:'일', fieldYear:'연도 (선택)', fieldLeadDays:'미리 알림 (일, 비워두면 기본값)',
+      relFamily:'가족', relFriend:'친구', relLover:'연인', relCoworker:'직장', relOther:'기타',
+      relationshipPlaceholder:'예: 가족, 친구, 선생님...',
+      typeBirthday:'생일', typeAnniversary:'기념일',
+      calendarTypeLabel:'달력 기준', calSolar:'양력', calLunar:'음력',
+      leapMonthLabel:'윤달', leapMonthHint:'이 달이 윤달이에요',
+      lunarRangeHint:'음력 계산은 1900~2050년 범위만 지원돼요',
+      tagLunar:'음력', tagLeapSuffix:' (윤)',
+      btnDelete:'삭제', btnCancel:'취소', btnSave:'저장',
+      messageModalTitle:'메시지 초안', btnShuffle:'다른 문구', btnCopy:'복사하기',
+      licenseTitle:'About · 이용 안내',
+      licenseIntro:'연락처 CSV를 읽어 생일·기념일을 챙겨주는 로컬 도구입니다. 실제 메시지 발송은 하지 않으며, 문구를 복사해서 직접 보내는 방식이에요.',
+      licensePrivacyTitle:'개인정보 처리 방식',
+      licensePrivacyDesc:'가져온 CSV와 입력한 항목은 전부 이 브라우저의 localStorage에만 저장되며, 어디로도 전송되지 않습니다. "매일 자동 확인"을 쓰고 싶다면 README의 작업 스케줄러 안내를 참고하세요 — 이 파일을 매일 정해진 시각에 브라우저로 열어주는 설정입니다.',
+      licenseNetworkTitle:'유일한 예외: AI 개인화 기능',
+      licenseNetworkDesc:'설정에서 "AI로 매번 다른 문구 생성"을 켜고 본인의 API 키를 입력하면, 문구를 만들 때마다 선택한 제공사(Claude, OpenAI, Gemini, Grok 중 하나)로 브라우저가 직접 요청을 보냅니다. 이 툴은 애초에 서버 없이 파일 하나로 브라우저에서 동작하기 때문에, 저희가 그 데이터를 중간에서 볼 수 있는 경로 자체가 없어요. 이 저장소의 다른 툴들과 달리 이 기능만 네트워크를 사용하며, 끄면 항상 무료 고정 문구만 사용됩니다. API 키는 이 브라우저에만 저장됩니다.',
+      licenseLunarTitle:'음력 생일 계산 데이터 출처',
+      licenseLunarDesc:'음력 생일의 다음 발생일 계산(1900~2050년)에는 한국천문연구원(KASI)의 음양력 계산 데이터를 가공한 <a class="license-site-link" href="https://github.com/urstory/manseryeok-js" target="_blank" rel="noopener noreferrer">urstory/manseryeok-js</a>(MIT License)에서 추출한 변환 테이블을 사용합니다. 원본 라이브러리를 그대로 포함하지 않고, 필요한 데이터만 이 파일 안에 직접 담았습니다.',
+      licenseCopyrightTitle:'저작권과 이용 조건',
+      licenseCopyrightDesc:'Copyright © 2026 Hanrim · Cozy Shelter. All rights reserved. 배포된 도구는 그대로 사용할 수 있습니다. 소스 코드의 수정·재배포·판매 또는 기타 상업적 이용은 저작권자의 사전 허락이 필요합니다.',
+      emptyState:'아직 등록된 일정이 없어요. CSV를 가져오거나 직접 추가해보세요.',
+      sampleHint:'예시예요 — 클릭하면 이 내용을 그대로 편집해서 나만의 일정으로 만들 수 있어요',
+      sampleBadge:'예시',
+      searchPlaceholder:'이름으로 검색',
+      filterAll:'전체', filterToday:'오늘', filter7:'7일 이내', filter30:'30일 이내',
+      sortDday:'다가오는 순', sortName:'이름순', sortRelationship:'관계별',
+      noResults:'조건에 맞는 일정이 없어요',
+      noResultsTitle:'조건에 맞는 일정이 없어요',
+      noResultsDesc:'검색어나 필터를 지우면 전체 일정을 다시 볼 수 있어요.',
+      btnResetFilters:'검색·필터 초기화', btnEdit:'편집',
+      btnAck:'완료', ackedTag:'완료함',
+      dupSkip:'건너뛰기', dupMerge:'병합 (빈 정보만 채움)', dupAddAnyway:'그래도 추가', dupBadge:'이미 있음',
+      toastMerged:'{m}개 병합했어요',
+      colUnused:'(사용 안 함)', colName:'이름', colBirthday:'생일', colAnniversary:'기념일', colRelationship:'관계', colNotes:'메모 (자동 인식)',
+      srcNotes:'메모에서 추정', srcColumn:'열에서 가져옴',
+      todayLabel:'오늘!', dDay:'D-',
+      toastCopied:'복사했어요', toastCopyFailed:'복사에 실패했어요', toastSaved:'저장했어요', toastDeleted:'삭제했어요',
+      toastSaveFailed:'저장에 실패했어요 — 브라우저 저장 공간을 확인해주세요',
+      toastCsvError:'CSV 파일을 읽을 수 없어요', toastImported:'{n}개 추가했어요', toastNoneSelected:'선택된 항목이 없어요',
+      toastAiFallback:'AI 생성에 실패해서 고정 문구로 대신했어요', toastNeedName:'이름을 입력해주세요', toastNeedDate:'월/일을 확인해주세요',
+      candName:'이름', candType:'종류', candDate:'날짜(월/일)', candRelationship:'관계', candSource:'출처'
+    },
+    en:{
+      title:'Reminder Studio',
+      tagline:"Never miss the birthdays and anniversaries noted in your contacts",
+      footerLicense:'About · Usage',
+      a11yDefault:'Default', a11ySafe:'Color-safe', a11yContrast:'High contrast',
+      helpBtn:'? Guide', helpTitle:'Reminder Studio Guide', closeLabel:'Close',
+      helpHtml:'<nav class="help-nav" aria-label="Help contents"><a href="#helpStart">3-minute start</a><a href="#helpImport">Manual & CSV</a><a href="#helpDashboard">Managing entries</a><a href="#helpMilestone">Milestones</a><a href="#helpMessage">Message drafts</a><a href="#helpLunar">Lunar birthdays</a><a href="#helpAi">AI & privacy</a><a href="#helpSchedule">Daily auto-check</a><a href="#helpKeyboard">Keyboard & access</a><a href="#helpTrouble">Troubleshooting</a></nav>' +
+        '<div class="help-content">' +
+        '<p class="help-lead"><strong>Contents</strong><br>If this is your first visit, follow the 3-minute start. Otherwise, use the contents on the left to jump directly to what you need.</p>' +
+        '<h3 id="helpStart">3-minute quick start</h3>' +
+        '<p>Reminder Studio is a local tool that sorts upcoming birthdays and anniversaries and prepares message drafts for you to send yourself.</p>' +
+        '<ol class="help-steps"><li><strong>Add your dates.</strong><br>Use “+ Add manually” for a few people or “Choose CSV file” for a larger contact list.</li>' +
+        '<li><strong>Check what is coming up.</strong><br>Use search, time filters, and sorting to find the people you need.</li>' +
+        '<li><strong>Copy a message draft.</strong><br>Open “Message draft,” choose a version, then paste it into your usual messaging app and send it yourself.</li></ol>' +
+        '<p class="help-note"><strong>Your data stays put.</strong> Anything you import or type is stored only in this browser and never sent anywhere.</p>' +
+        '<h3 id="helpImport">Manual entry and CSV import</h3>' +
+        '<h4>Add one person manually</h4><p>Use “+ Add manually” to enter a name, relationship, birthday or anniversary, and date. Year and a custom reminder lead time are optional.</p>' +
+        '<p>Relationship can be one of the five built-ins (Family, Friend, Partner, Coworker, Other), or anything you like — "Teacher," "Client," whatever fits. Anything you type once becomes an autocomplete suggestion next time.</p>' +
+        '<h4>Import several people from CSV</h4>' +
+        '<p class="help-note"><strong>Google Contacts:</strong> go to <strong>contacts.google.com</strong> and choose "Export" from the left-hand menu to save a CSV file. <strong>Outlook:</strong> from Contacts, use "File → Open & Export → Import/Export → Export to a file → Comma Separated Values" (on Outlook.com, use "Export" from the contacts list toolbar instead). Then pick that saved file below with "Choose CSV file."</p>' +
+        '<p>After choosing a file, you\'ll assign each column a role — Name, Birthday, Anniversary, Relationship, or Notes. Common headers (like Google\'s) are guessed automatically, but you can always change them.</p>' +
+        '<h4>Auto-detecting dates in notes</h4>' +
+        '<p>Map a column to "Notes" and the tool scans sentences containing words like "birthday" or "anniversary" for a date, showing each guess as a candidate. Nothing is added automatically — you review and check off what to keep.</p>' +
+        '<h4>If someone\'s already on your list</h4>' +
+        '<p>A match on name, type, and date gets flagged "Already exists," and you can choose to skip it, merge (fills in a missing year only), or add it anyway.</p>' +
+        '<h3 id="helpDashboard">Managing your entries</h3>' +
+        '<p>Entries are sorted by how soon they are from today. Search by name, filter by time range (today / within 7 days / within 30 days), or re-sort by name or relationship.</p>' +
+        '<p>Today\'s entries are highlighted; once you\'ve sent your message, press "Done" to turn off that highlight for the day.</p>' +
+        '<h3 id="helpMilestone">Milestone birthdays and anniversaries</h3>' +
+        '<p>If you\'ve entered a year, special birthdays — 1st, 60th, 70th, and 80th (the traditional Korean Dol and Hwangap milestones) — and round-number anniversaries (10, 20, 25, 30, 40, 50 years) get a gold badge on the card and are worked into the message text automatically.</p>' +
+        '<h3 id="helpMessage">Writing a message</h3>' +
+        '<p>Press "Message draft" on any entry for a suggestion matched to its relationship and type, "Shuffle" for another version, and "Copy" to place it on your clipboard — then paste it into whatever app you actually message people from. This tool never sends anything for you.</p>' +
+        '<h3 id="helpLunar">Lunar birthdays</h3>' +
+        '<p>When adding a birthday, choose "Lunar" under Calendar and it will convert to the correct solar date every year. Check "Leap month" if that\'s a leap-month birthday — if a given year has no matching leap month, it falls back to the regular month automatically. Anniversaries are solar-only for now.</p>' +
+        '<p class="help-note">Lunar conversion only covers years 1900–2050.</p>' +
+        '<h3 id="helpAi">AI personalization (optional)</h3>' +
+        '<p>Turn on "Generate a fresh message with AI" in Settings and add your own API key to get a newly written message instead of a fixed template every time. Choose from Claude, OpenAI, Gemini, or Grok — your key is stored only in this browser.</p>' +
+        '<p class="help-note"><strong>Network notice.</strong> Only the optional AI feature makes a direct browser request to your chosen provider. Leave it off to use free fixed templates without a network request.</p>' +
+        '<h3 id="helpSchedule">Daily automatic check</h3>' +
+        '<p>This file recalculates "today" every time you open the tab, so opening it whenever you think of it works fine. For a fully automatic morning check, use whichever method matches your operating system.</p>' +
+        '<h4>Windows</h4>' +
+        '<p>Using the interface: search for "Task Scheduler" in the Start menu, open it, and choose "Create Basic Task…"</p>' +
+        '<ol class="help-steps"><li><strong>Name it and set a time.</strong><br>Give it any name (e.g. "Cozy Shelter Reminder Studio"), set the trigger to "Daily," and pick a time (e.g. 8:00 AM).</li>' +
+        '<li><strong>Point it at a program.</strong><br>Choose "Start a program," browse to your browser\'s executable, and add the full path to this HTML file as an argument.</li></ol>' +
+        '<p class="help-note"><strong>Finding the file path.</strong> In File Explorer, hold <kbd>Shift</kbd>, right-click this HTML file, and choose "Copy as path" — then just paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>) it into the arguments field.</p>' +
+        '<p>Or from a terminal, run the command below after adjusting both paths to match your setup.</p>' +
+        '<pre><code>schtasks /create /tn "CozyShelterReminderStudio" /tr "\\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\\" \\"C:\\path\\to\\Cozy_Shelter_Reminder_Studio.html\\"" /sc daily /st 08:00</code></pre>' +
+        '<p class="help-note">To remove it later, run <code>schtasks /delete /tn "CozyShelterReminderStudio"</code>.</p>' +
+        '<h4>macOS</h4>' +
+        '<p>Using the interface: in the Calendar app, create a new event that repeats daily, change its alert type to "Open file," and pick this HTML file.</p>' +
+        '<p>Or from a terminal, run <code>crontab -e</code>, add a line like the one below, then save (adjust the path to match your setup).</p>' +
+        '<pre><code>0 8 * * * open -a "Google Chrome" "/path/to/Cozy_Shelter_Reminder_Studio.html"</code></pre>' +
+        '<p class="help-note">To remove it later, run <code>crontab -e</code> again, delete that line, and save.</p>' +
+        '<h3 id="helpKeyboard">Keyboard and accessibility</h3>' +
+        '<ul><li>Use <kbd>Tab</kbd> and <kbd>Shift</kbd> + <kbd>Tab</kbd> to move between controls.</li><li>Use <kbd>Enter</kbd> or <kbd>Space</kbd> to activate the focused button.</li><li>Press <kbd>Esc</kbd> to close an open guide, editor, or message dialog.</li><li>Choose Color-safe or High contrast from the “Default” menu in the header.</li></ul>' +
+        '<h3 id="helpTrouble">Troubleshooting and data</h3>' +
+        '<h4>If CSV results look wrong</h4><p>Review the column mapping and candidates before importing. Dates detected in Notes are never added until you check them.</p>' +
+        '<h4>If an entry seems missing</h4><p>Clear the search field and set the time filter to All. A matching name, type, and date may also have been skipped in duplicate handling.</p>' +
+        '<h4>Before clearing browser data</h4><p>Your entries live in this browser\'s localStorage. Clearing site data or browser storage can also remove your entries and settings — back up first with "Export (JSON)" in Settings. To move to another browser or device, open that same file there with "Import (JSON)" to restore everything.</p>' +
+        '</div>',
+      dashTitle:'Coming up', dashDesc:'Sorted by how soon it is from today',
+      btnAddEntry:'+ Add manually',
+      importTitle:'Import contacts CSV',
+      importDesc:"Reads a CSV export from Google Contacts or similar. The file never leaves this browser tab.",
+      btnChooseCsv:'Choose CSV file',
+      localOnlyMessage:'Processed only in this browser — never sent anywhere.',
+      mappingHint:'Tell us what each column means. Map a column to "Notes" and we\'ll scan sentences with birthday/anniversary keywords for dates.',
+      btnBuildCandidates:'Build preview',
+      candidatesHint:'Review and edit before adding.',
+      btnImportSelected:'Add selected',
+      settingsTitle:'Settings', leadDaysLabel:'Reminder lead time (days)',
+      aiToggleLabel:'Generate a fresh message with AI', optionalBadge:'Optional',
+      aiSummary:'Everything works with the free built-in messages.',
+      aiProviderLabel:'Provider', aiKeyLabel:'API key', aiModelLabel:'Model name (optional, blank = default)',
+      aiDisclosure:"Turning this on makes your browser send a direct request to the provider you chose (Claude, etc.) each time you generate a message. This tool has no server of its own — it's just a file running in your browser — so there's no path for that data to pass through anything we operate. Your key is stored only in this browser. Off = free fixed templates only.",
+      dataManageTitle:'Data backup',
+      dataManageDesc:"Your entries live only in this browser. Export a backup before switching devices or in case browser data gets cleared.",
+      btnExportData:'Export (JSON)', btnImportData:'Import (JSON)',
+      importDataConfirm:'Importing will replace all current entries with the contents of this file. Continue?',
+      toastExported:'Saved a backup file', toastDataImported:'Imported {n} entries',
+      toastImportInvalid:'Not a valid backup file',
+      entryModalTitleAdd:'Add manually', entryModalTitleEdit:'Edit',
+      fieldName:'Name', fieldRelationship:'Relationship', fieldEventType:'Type', fieldMonth:'Month', fieldDay:'Day', fieldYear:'Year (optional)', fieldLeadDays:'Lead time (days, blank = default)',
+      relFamily:'Family', relFriend:'Friend', relLover:'Partner', relCoworker:'Coworker', relOther:'Other',
+      relationshipPlaceholder:'e.g. Family, Friend, Teacher...',
+      typeBirthday:'Birthday', typeAnniversary:'Anniversary',
+      calendarTypeLabel:'Calendar', calSolar:'Solar', calLunar:'Lunar',
+      leapMonthLabel:'Leap month', leapMonthHint:'This month is a leap month',
+      lunarRangeHint:'Lunar conversion only covers years 1900–2050',
+      tagLunar:'Lunar', tagLeapSuffix:' (leap)',
+      btnDelete:'Delete', btnCancel:'Cancel', btnSave:'Save',
+      messageModalTitle:'Message draft', btnShuffle:'Shuffle', btnCopy:'Copy',
+      licenseTitle:'About · Usage',
+      licenseIntro:'A local tool that reads your contacts CSV and surfaces birthdays and anniversaries. It never sends messages for you — copy the draft and send it yourself.',
+      licensePrivacyTitle:'Privacy',
+      licensePrivacyDesc:'Everything you import or type is stored only in this browser\'s localStorage and never sent anywhere. For a daily automatic check, see the README\'s Task Scheduler instructions — it just opens this file in your browser at a set time each day.',
+      licenseNetworkTitle:'The one exception: AI personalization',
+      licenseNetworkDesc:'Turning on "Generate with AI" in Settings and entering your own API key makes your browser call that provider (Claude, OpenAI, Gemini, or Grok — whichever you pick) directly each time you generate a message. This tool has no server of its own — it\'s just a file running in your browser — so there\'s no path for that data to pass through anything we operate. Unlike the rest of this suite, this feature uses the network; leave it off and only free fixed templates are used. Your key stays only in this browser.',
+      licenseLunarTitle:'Lunar birthday calculation data source',
+      licenseLunarDesc:'Computing the next occurrence of a lunar-calendar birthday (1900–2050) uses a conversion table extracted from <a class="license-site-link" href="https://github.com/urstory/manseryeok-js" target="_blank" rel="noopener noreferrer">urstory/manseryeok-js</a> (MIT License), which is itself built on lunar-solar calculation data from KASI (Korea Astronomy and Space Science Institute). The original library isn\'t bundled as-is — only the data this tool needs is embedded directly in this file.',
+      licenseCopyrightTitle:'Copyright & terms',
+      licenseCopyrightDesc:'Copyright © 2026 Hanrim · Cozy Shelter. All rights reserved. Free to download and use as-is. Modifying, redistributing, selling, or other commercial use of the source requires the copyright holder\'s prior permission.',
+      emptyState:"Nothing scheduled yet. Import a CSV or add an entry.",
+      sampleHint:"Just an example — click it to edit the details and make it your own",
+      sampleBadge:'Example',
+      searchPlaceholder:'Search by name',
+      filterAll:'All', filterToday:'Today', filter7:'Within 7 days', filter30:'Within 30 days',
+      sortDday:'Soonest first', sortName:'By name', sortRelationship:'By relationship',
+      noResults:'Nothing matches this filter',
+      noResultsTitle:'Nothing matches this view',
+      noResultsDesc:'Clear the search and filters to see all upcoming entries again.',
+      btnResetFilters:'Reset search & filters', btnEdit:'Edit',
+      btnAck:'Done', ackedTag:'Done for today',
+      dupSkip:'Skip', dupMerge:'Merge (fill blanks only)', dupAddAnyway:'Add anyway', dupBadge:'Already exists',
+      toastMerged:'Merged {m}',
+      colUnused:'(unused)', colName:'Name', colBirthday:'Birthday', colAnniversary:'Anniversary', colRelationship:'Relationship', colNotes:'Notes (auto-detect)',
+      srcNotes:'guessed from notes', srcColumn:'from column',
+      todayLabel:'Today!', dDay:'D-',
+      toastCopied:'Copied', toastCopyFailed:'Copy failed', toastSaved:'Saved', toastDeleted:'Deleted',
+      toastSaveFailed:'Save failed — check your browser storage space',
+      toastCsvError:'Could not read that CSV file', toastImported:'Added {n}', toastNoneSelected:'Nothing selected',
+      toastAiFallback:'AI generation failed, used a fixed template instead', toastNeedName:'Please enter a name', toastNeedDate:'Please check month/day',
+      candName:'Name', candType:'Type', candDate:'Date (M/D)', candRelationship:'Relationship', candSource:'Source'
+    }
+  };
+
+  var TEMPLATES = {
+    ko:{
+      birthday:{
+        family:["{name}, 생일 축하해. 늘 우리 편이 되어줘서 고맙고, 오늘은 네가 가장 편안했으면 좋겠어.","한 해를 잘 지나온 당신에게 박수를 보내요. 좋아하는 음식과 웃음이 곁에 있는 생일 보내요.","오늘만큼은 집안일도 걱정도 잠시 내려놓고, 온전히 축하받는 하루였으면 해.","우리 가족으로 함께하는 시간이 참 든든해. 생일 진심으로 축하해 🎂","{name}의 새 나이가 무리 없이, 다정한 일들로 천천히 채워지길 바라.","자주 말하지 못하지만 늘 고맙게 생각하고 있어. 오늘은 그 마음을 꼭 전하고 싶었어.","생일 축하해! 별일 없는 평범한 날에도 웃을 일이 조금 더 많아지는 한 해가 되길.","함께 쌓은 시간이 많아서인지 생일이 올 때마다 더 반갑고 소중해. 좋은 하루 보내.","오늘 태어나 우리 곁에 와줘서 고마워. 맛있는 것 많이 먹고 푹 쉬어 😊","새로운 한 해에도 건강히, 네 속도대로 잘 지내자. 언제나 가까이에서 응원할게."],
+        friend:["{name}, 오늘은 네 날이다! 하고 싶은 거 다 하고 맛있는 것도 꼭 챙겨 먹어 🎉","생일 축하해. 오래 봐도 여전히 반갑고, 만나면 할 말이 많은 친구라 참 좋다.","또 한 살 멋져진 걸 축하한다. 올해도 재미있는 일 많이 만들어 보자.","네가 있어서 평범한 날도 자주 웃게 돼. 오늘은 그 웃음이 전부 네 몫이길!","생일 핑계로 말한다. 늘 고맙고, 앞으로도 별것 아닌 얘기 오래 나누자.","오늘 일정은 축하받기, 잘 먹기, 푹 쉬기. 나머지는 내일부터 해도 돼 😄","{name}답게 유쾌하고 단단한 한 해가 시작되길 바라. 생일 정말 축하해.","좋은 친구의 생일을 기억하고 축하할 수 있어 기쁘다. 조만간 얼굴 보고 제대로 축하하자.","올해는 네가 바라던 일 하나쯤 시원하게 이루어졌으면 좋겠다. 나는 계속 네 편!","생일 축하해! 오늘 찍은 사진처럼 오래 꺼내 보고 싶은 하루가 되길."],
+        lover:["{name}, 당신의 생일을 함께 축하할 수 있어 좋아요. 오늘도 많이 사랑해요.","당신이 태어난 날이라 내게도 특별한 하루예요. 편안하고 따뜻하게 보내요 ❤️","올해의 생일도 곁에서 바라볼 수 있어 고마워. 다음 생일들에도 함께 웃고 싶어.","오늘은 당신이 좋아하는 것들로만 하루를 채워요. 축하는 내가 오래 맡을게요.","당신을 알게 된 뒤로 평범한 계절에도 기다리는 날이 생겼어요. 생일 축하해요.","새 나이의 첫날, 가장 먼저 다정한 마음을 건네고 싶었어요. 좋은 하루 보내요.","많이 애쓰지 않아도 괜찮은 하루였으면 해요. 오늘의 당신은 그저 축하받아야 하니까.","{name}의 웃음을 가까이에서 볼 수 있는 오늘이 참 좋아요. 생일 진심으로 축하해요.","선물보다 오래 남을 마음을 전해요. 함께해줘서 고맙고, 앞으로도 잘 부탁해요.","당신의 다음 한 해에도 좋은 장면이 많기를. 그중 여러 장면에 내가 함께였으면 좋겠어요."],
+        coworker:["{name}님, 생일을 진심으로 축하드립니다. 오늘은 여유롭고 기분 좋은 하루 보내시길 바랍니다.","함께 일하며 보여주신 배려에 늘 감사드립니다. 새로운 한 해에도 좋은 일이 많으시길 바랍니다.","뜻깊은 날을 맞아 축하의 마음을 전합니다. 건강하고 평안한 한 해 되세요.","생일 축하드립니다. 바쁜 일상 속에서도 오늘만큼은 충분히 웃으실 수 있기를 바랍니다.","{name}님의 새 출발을 응원합니다. 계획하신 일들이 차분히 결실을 맺는 한 해가 되길 바랍니다.","기쁜 날, 좋은 분들과 따뜻한 시간 보내시길 바랍니다. 생일 진심으로 축하드립니다.","늘 든든하게 함께해주셔서 감사합니다. 올해도 보람과 즐거움이 고루 함께하시길 바랍니다.","생일을 맞아 감사와 축하를 전합니다. 일과 일상 모두에서 만족스러운 한 해 되십시오.","오늘 하루는 업무의 분주함보다 축하의 기쁨이 더 크기를 바랍니다. 행복한 생일 보내세요.","새로운 한 해에 반가운 기회와 편안한 순간이 자주 찾아오길 바랍니다. 축하드립니다."],
+        other:["{name}님, 생일 축하드립니다. 오늘 하루 좋은 기억을 많이 남기시길 바랍니다.","특별한 날을 맞아 따뜻한 축하를 전합니다. 새롭게 시작되는 한 해도 평안하세요.","생일을 진심으로 축하드려요. 바라시는 일에 한 걸음 더 가까워지는 해가 되길 바랍니다.","오늘의 기쁨이 오래도록 잔잔하게 이어지기를 바랍니다. 즐거운 생일 보내세요.","한 해에 한 번뿐인 날, 좋은 사람들과 넉넉한 웃음 나누시길 바랍니다.","{name}님의 새로운 한 해가 반가운 만남과 의미 있는 순간으로 채워지길 바랍니다.","생일 축하드립니다. 스스로에게도 다정한 하루를 선물해 보세요.","기억해두고 싶은 좋은 날이 되기를 바라며 축하의 마음을 보냅니다.","오늘을 시작으로 일상에 작은 기쁨이 자주 찾아오길 바랍니다. 생일 축하해요.","소중한 날에 마음을 보탭니다. 편안하고 기분 좋은 시간 보내시길 바랍니다."]
+      },
+      anniversary:{
+        family:["우리가 가족으로 함께해온 시간을 오늘도 고맙게 기억해. 앞으로도 건강하게 잘 지내자.","함께 웃고 견뎌온 날들이 모여 오늘이 되었네. 우리 가족의 기념일을 축하해.","익숙해서 놓치기 쉬운 고마움을 오늘은 꼭 전하고 싶어. 늘 곁에 있어줘서 고마워.","같은 편으로 살아온 시간이 참 든든해. 오늘은 오래된 사진도 함께 꺼내 보자 📷","기쁜 날도 어려운 날도 함께 지나와줘서 고마워. 우리의 다음 계절도 평안하길.","특별한 계획이 없어도 함께라서 좋은 날이야. 우리만의 기념일, 따뜻하게 보내자.","시간이 흐를수록 가족이라는 말이 더 깊게 느껴져. 오늘을 함께 축하할 수 있어 기뻐.","서로를 챙겨온 작은 마음들이 쌓여 여기까지 왔네. 앞으로도 천천히 잘 걸어가자.","오늘은 우리에게 의미 있는 날. 평범한 저녁이라도 웃으며 마주 앉을 수 있으면 좋겠어 😊","지금까지의 추억에 고마움을, 앞으로의 날들에는 기대를 보태며 기념일을 축하해."],
+        friend:["우리가 친구가 된 날을 정확히 기억하지 못해도, 오래 함께한 시간은 분명 소중해. 오늘을 축하하자!","이만큼 오래 연락하고 웃을 수 있다니 꽤 잘해왔다, 우리. 우정 기념일 축하해 🎉","별것 아닌 이야기도 재미있게 만드는 네가 있어 좋다. 앞으로도 종종 만나 오래 떠들자.","함께 만든 추억이 생각보다 많더라. 다음 장면들도 부담 없이 하나씩 쌓아가자.","시간이 지나도 편하게 연락할 수 있는 사이여서 고마워. 오늘은 우리 우정에 건배!","좋을 때만이 아니라 힘들 때도 곁을 지켜줘서 고마워. 오래된 친구의 자리를 소중히 할게.","우리의 기념일이라니 조금 쑥스럽지만, 좋은 인연을 만난 건 제대로 축하할 일이야.","멀리 있어도 문득 생각나는 친구가 있다는 건 꽤 든든한 일이더라. 늘 고마워.","서로 달라서 더 재미있었던 시간들. 앞으로도 각자답게 지내면서 종종 함께 웃자 😄","오늘은 지난 추억 하나 꺼내 웃고, 다음 약속 하나 잡는 날로 하자. 기념일 축하해!"],
+        lover:["우리의 시간을 함께 세어갈 수 있어 행복해요. 오늘도 당신 곁이라 참 좋습니다.","처음의 설렘과 지금의 편안함을 모두 아껴요. 우리 기념일 축하해요 ❤️","당신과 보낸 평범한 날들이 내겐 가장 좋은 기억이 되었어요. 앞으로도 잘 부탁해요.","서로의 하루에 자연스럽게 자리 잡은 우리가 좋아요. 오늘은 그 시간을 천천히 축하해요.","함께 걸어온 만큼 서로를 더 잘 이해하게 되었네요. 다음 길도 다정하게 걸어요.","특별한 날이라서가 아니라, 당신과 함께라서 오늘이 특별해요.","우리 사이에 쌓인 작은 약속과 웃음들을 오래 지키고 싶어요. 기념일 축하해요.","처음 마음을 떠올리면 아직도 웃음이 나요. 지금의 우리도 그때만큼 소중합니다.","시간이 흘러도 당신에게 건네는 마음은 서두르지 않고 깊어지면 좋겠어요.","오늘까지 함께 와줘서 고마워요. 다음 기념일에도 서로의 가장 편안한 사람이길 바라요."],
+        coworker:["뜻깊은 기념일을 진심으로 축하드립니다. 그동안 쌓아온 성과가 앞으로의 든든한 기반이 되길 바랍니다.","함께해온 시간과 노고에 감사드립니다. 새로운 이정표를 맞아 더 큰 발전을 기원합니다.","오늘의 기념일은 많은 분의 꾸준한 노력으로 만들어진 결과라 생각합니다. 축하드립니다.","소중한 역사를 한 해 더 이어가게 된 것을 축하드립니다. 앞으로도 좋은 동행이 계속되길 바랍니다.","지나온 발자취에 존경을, 다가올 여정에 응원을 보냅니다. 뜻깊은 하루 보내십시오.","{name}님의 근속 기념일을 축하드립니다. 변함없는 책임감과 기여에 깊이 감사드립니다.","함께 성장해온 시간을 기쁘게 기억합니다. 다음 단계에서도 값진 결실이 이어지길 바랍니다.","기념일을 맞아 감사의 마음을 전합니다. 앞으로도 서로에게 든든한 동료가 되기를 바랍니다.","한결같이 자리를 지켜주신 덕분에 오늘의 의미가 더욱 큽니다. 진심으로 축하드립니다.","새로운 이정표에 도달하신 것을 축하드립니다. 보람찬 순간이 더 많이 이어지길 바랍니다."],
+        other:["뜻깊은 날을 진심으로 축하드립니다. 오늘의 좋은 마음이 오래 기억되길 바랍니다.","함께한 시간을 기념하며 따뜻한 축하를 전합니다. 앞으로의 날들도 평안하시길 바랍니다.","소중한 인연이 이어져온 오늘을 축하해요. 좋은 추억을 하나 더 남기는 하루가 되세요.","지나온 시간을 돌아보고 앞으로를 기대하기에 좋은 날입니다. 기념일 축하드립니다.","오늘의 의미를 아끼는 분들과 편안히 나누시길 바랍니다. 행복한 기념일 보내세요.","{name}님께 특별한 오늘이 오래도록 기분 좋은 기억으로 남기를 바랍니다.","꾸준히 이어온 시간에 박수를 보냅니다. 다음 여정에도 좋은 일이 함께하길 바랍니다.","기념할 수 있는 순간이 있다는 건 참 반가운 일입니다. 마음 깊이 축하드립니다.","오늘을 계기로 고마웠던 순간들을 다시 떠올려보는 따뜻한 하루가 되길 바랍니다.","소중한 발자취에 축하를 보냅니다. 앞으로 맞이할 날들도 의미 있게 빛나길 바랍니다."]
+      }
+    },
+    en:{
+      birthday:{
+        family:["Happy birthday, {name}. Thank you for being such a steady part of our family. I hope today feels easy and full of care.","Here’s to another year of you being wonderfully yourself. Eat something you love and take the day at your own pace.","You do so much for everyone else. Today, I hope you let us celebrate you for a change.","Home feels warmer with you in it. Happy birthday to one of my favorite people 🎂","Wishing you a year with fewer worries, more quiet wins, and plenty of time for what matters to you.","I may not say it often enough, but I’m grateful for you every day. Happy birthday.","May this next chapter bring good health, calm mornings, and reasons to look forward to tomorrow.","Another birthday, another reminder of how lucky we are to call you family.","I hope your day includes a full plate, a long laugh, and absolutely no rushing 😊","Happy birthday, {name}. Whatever this year brings, you won’t have to face it alone."],
+        friend:["Happy birthday, {name}! Clear the schedule—the only assignment today is having a good time 🎉","Life is better with a friend I can call for both big news and completely pointless stories.","You’ve made another trip around the sun look good. Let’s make this year one worth talking about.","Thanks for being the kind of friend who makes ordinary days unexpectedly fun. Today is all yours.","Birthday note to self: tell you I appreciate you, then make plans before another month disappears.","May your coffee be strong, your cake generous, and your notifications mostly birthday wishes 😄","I hope this year brings one bold adventure and a hundred small moments that feel just right.","Happy birthday to someone who has seen every version of me and somehow still answers my messages.","I’m rooting for the thing you haven’t told everyone about yet. This could be your year.","Hope today becomes one of those memories that still makes you smile much later."],
+        lover:["Happy birthday, my love. Getting to celebrate you up close is one of my favorite privileges.","The world became a better place on the day you arrived—and my life certainly did ❤️","I’m grateful for every version of us that led to this birthday. I can’t wait to meet the ones ahead.","Today, choose every little thing you love. I’ll be right beside you, cheering you on.","Knowing you has given me more days to look forward to. Your birthday will always be one of them.","I wanted the first gift today to be a simple reminder: you are deeply loved.","No plans to prove, no expectations to meet. You deserve a birthday that feels soft and entirely yours.","Your smile is still the best part of any celebration. Happy birthday, {name}.","What we have means more to me than any gift could say. Thank you for sharing your life with me.","I hope this next year is kind to you—and I hope I’m there for many of its best moments."],
+        coworker:["Happy birthday, {name}. Wishing you a relaxed day and a year filled with rewarding work and time well spent.","Your thoughtfulness makes working together better. I hope the year ahead returns that kindness in many ways.","Warm wishes on your birthday. May the months ahead bring steady progress and plenty to enjoy beyond the office.","Happy birthday! I hope today gives you a welcome pause from the usual pace.","Here’s to a fresh year of meaningful opportunities, good people, and results you can be proud of.","I hope you get to celebrate with the people and things that matter most to you. Have a wonderful birthday.","Thank you for being such a reliable and generous colleague. Wishing you a fulfilling year ahead.","Sending my best on your birthday. May both work and life bring you a strong sense of satisfaction this year.","I hope the celebrations outweigh the emails today. Happy birthday!","Wishing you new possibilities, smooth days, and many moments worth appreciating in the year ahead."],
+        other:["Happy birthday, {name}. I hope today leaves you with a few memories worth keeping.","Warm wishes for a special day and a peaceful start to the year ahead.","May this birthday move you a little closer to something you’ve been hoping for.","I hope the good feeling of today lingers long after the candles are gone.","Wishing you good company, easy laughter, and time to enjoy the occasion.","May your next year bring welcome surprises and moments that feel genuinely meaningful.","Happy birthday. I hope you make a little room today to be kind to yourself.","Sending a thoughtful wish for a day you’ll be glad to remember.","May small joys find their way into your routine often this year.","Celebrating the occasion with you from here. I hope it’s a calm and lovely day."]
+      },
+      anniversary:{
+        family:["Today is a lovely reminder of how much our family has shared. I’m grateful we’ve had each other through it all.","The years have held both laughter and hard days, and we kept showing up. That is worth celebrating.","Familiar love can be easy to overlook, so today I want to say it clearly: I’m thankful for you.","We’ve collected so many stories together. Maybe today is a good day to look through a few old photos 📷","Thank you for walking beside us through every kind of season. May the next one be gentle.","We don’t need elaborate plans to mark a meaningful day. Being together is enough.","The older I get, the more I understand what a gift it is to belong to this family.","So many small acts of care brought us here. Let’s keep choosing one another, one day at a time.","Here’s to a quiet celebration, a shared meal, and the comfort of being home together 😊","Grateful for everything behind us and hopeful for all that is still ahead. Happy anniversary."],
+        friend:["We may not remember the exact day we became friends, but I’m glad the story kept going.","Look at us—still talking, still laughing, still sending each other ridiculous things. Worth celebrating 🎉","Thanks for making even the most ordinary conversations entertaining. Let’s keep this friendship going.","We’ve built quite a collection of memories. I’m ready for whatever odd little adventure comes next.","There’s real comfort in knowing I can still call you after all this time. Cheers to us.","Thank you for staying close when life wasn’t especially easy. I never take that kind of friendship for granted.","A friendship anniversary sounds slightly dramatic, but meeting you was absolutely worth marking.","Even when we’re far apart, you’re one of the people I naturally think to tell. I’m grateful for that.","We’ve never had to be the same to understand each other. That might be the best thing about us 😄","Let’s celebrate properly: revisit one old story and put one new plan on the calendar."],
+        lover:["I love that we get to count this time together. Happy anniversary to the person who still feels like home.","I treasure both the early butterflies and the ease we’ve grown into. Here’s to us ❤️","Somehow, our ordinary days have become my favorite memories. Thank you for sharing them with me.","I love the quiet way we’ve become part of each other’s lives. Today, let’s take our time celebrating that.","We know each other more deeply now, and I’m grateful for every step that brought us here.","This day matters because it belongs to us, but you are what makes it truly special.","I want to keep caring for the little promises, private jokes, and everyday kindness between us.","Thinking about the beginning still makes me smile. What we have now means even more.","I hope our love keeps growing without hurry—steadier, kinder, and more honest with time.","Thank you for choosing this life with me. May we always be each other’s safest place."],
+        coworker:["Congratulations on this meaningful milestone. May the work behind it become a strong foundation for what comes next.","Thank you for the time, care, and effort you have invested. Wishing you continued growth in the years ahead.","Today’s milestone reflects the steady contribution of many people. It is a pleasure to celebrate it with you.","Congratulations on adding another chapter to an impressive history. May the partnership continue to thrive.","With respect for the road behind you and confidence in the one ahead, congratulations on this anniversary.","Congratulations on your work anniversary, {name}. Your consistency and contribution are sincerely appreciated.","It has been rewarding to grow alongside you. May the next stage bring results that feel equally worthwhile.","Marking this occasion with genuine thanks. I look forward to continuing our work together.","Your dependable presence has helped give this milestone its meaning. Congratulations and thank you.","Well done on reaching this new marker. Wishing you many more moments of pride and purpose ahead."],
+        other:["Warm congratulations on a meaningful occasion. I hope today becomes a memory you hold onto.","Celebrating the time you have shared and wishing you peace in all the days ahead.","What a lovely reason to pause and appreciate a lasting connection. Happy anniversary.","Today offers a chance to honor the journey so far and look forward to what comes next.","I hope you spend this occasion with the people who understand what it means to you.","May this special date leave {name} with a warm memory for years to come.","Congratulations on all the commitment behind this milestone. May the next stretch be equally rewarding.","Having something meaningful to commemorate is a gift in itself. Sending my sincere congratulations.","I hope today brings back the moments that made the journey worthwhile.","Honoring the path that brought you here and wishing you a bright, purposeful road ahead."]
+      }
+    }
+  };
+
+  var REL_KEYWORDS = {
+    family:['가족','부모','아빠','엄마','아버지','어머니','형','누나','언니','오빠','동생','아들','딸','family','mom','dad','father','mother','brother','sister'],
+    lover:['연인','애인','남친','여친','배우자','남편','아내','신랑','신부','lover','boyfriend','girlfriend','spouse','husband','wife'],
+    coworker:['직장','동료','회사','팀장','팀원','coworker','colleague','boss','manager'],
+    friend:['친구','friend']
+  };
+
+  var APP_VERSION = 'v0.1.3';
+  var lang = localStorage.getItem('cozyShelterReminderStudioLang') || 'ko';
+  var storedA11y = localStorage.getItem('cozyShelterReminderStudioA11y');
+  var a11y = ['default','safe','contrast'].indexOf(storedA11y) >= 0 ? storedA11y : 'default';
+
+  function t(key){ return (I18N[lang] && I18N[lang][key]) || I18N.ko[key] || ''; }
+
+  var ENTRIES_KEY = 'cozyShelterReminderStudioEntries';
+  var SETTINGS_KEY = 'cozyShelterReminderStudioSettings';
+
+  function loadEntries(){
+    try{
+      var parsed = JSON.parse(localStorage.getItem(ENTRIES_KEY));
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(e){ return []; }
+  }
+  function saveEntries(){
+    try{ localStorage.setItem(ENTRIES_KEY, JSON.stringify(entries)); return true; }
+    catch(e){ toast(t('toastSaveFailed')); return false; }
+  }
+
+  function loadSettings(){
+    try{ return Object.assign({leadDays:7, aiEnabled:false, aiProvider:'anthropic', aiKey:'', aiModel:''}, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
+    catch(e){ return {leadDays:7, aiEnabled:false, aiProvider:'anthropic', aiKey:'', aiModel:''}; }
+  }
+  function saveSettings(){
+    try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); return true; }
+    catch(e){ toast(t('toastSaveFailed')); return false; }
+  }
+
+  var entries = loadEntries();
+  var settings = loadSettings();
+  var messageState = { entry:null, history:[] };
+
+  /* ---------- Date helpers ---------- */
+  function pad2(n){ return String(n).padStart(2,'0'); }
+
+  function parseFlexibleDate(raw){
+    if (!raw) return null;
+    var s = String(raw).trim();
+    var m;
+    if ((m = s.match(/^-?-(\d{1,2})-(\d{1,2})$/))) return { year:null, month:+m[1], day:+m[2] };
+    if ((m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/))) return { year:+m[1], month:+m[2], day:+m[3] };
+    if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/))) return { year:+m[3], month:+m[1], day:+m[2] };
+    if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})$/))) return { year:null, month:+m[1], day:+m[2] };
+    return null;
+  }
+
+  function isValidMonthDay(month, day){
+    return Number.isInteger(month) && Number.isInteger(day) && month>=1 && month<=12 && day>=1 && day<=31;
+  }
+
+  /* ---------- Lunar calendar (음력) support, birthdays only ----------
+     Table gives, for every (lunar year, lunar month, is-leap-month) that
+     occurs between 1900 and 2050, the Julian Day Number of that lunar
+     month's day 1 (relative to LUNAR_BASE_JD). Derived from KASI (Korea
+     Astronomy and Space Science Institute) data via urstory/manseryeok-js
+     (MIT License) — see the About · Usage dialog for the full credit. */
+  var LUNAR_BASE_JD = 2415021;
+  var LUNAR_KEYS = [189912,190001,190002,190003,190004,190005,190006,190007,190008,190058,190009,190010,190011,190012,190101,190102,190103,190104,190105,190106,190107,190108,190109,190110,190111,190112,190201,190202,190203,190204,190205,190206,190207,190208,190209,190210,190211,190212,190301,190302,190303,190304,190305,190355,190306,190307,190308,190309,190310,190311,190312,190401,190402,190403,190404,190405,190406,190407,190408,190409,190410,190411,190412,190501,190502,190503,190504,190505,190506,190507,190508,190509,190510,190511,190512,190601,190602,190603,190604,190654,190605,190606,190607,190608,190609,190610,190611,190612,190701,190702,190703,190704,190705,190706,190707,190708,190709,190710,190711,190712,190801,190802,190803,190804,190805,190806,190807,190808,190809,190810,190811,190812,190901,190902,190952,190903,190904,190905,190906,190907,190908,190909,190910,190911,190912,191001,191002,191003,191004,191005,191006,191007,191008,191009,191010,191011,191012,191101,191102,191103,191104,191105,191106,191156,191107,191108,191109,191110,191111,191112,191201,191202,191203,191204,191205,191206,191207,191208,191209,191210,191211,191212,191301,191302,191303,191304,191305,191306,191307,191308,191309,191310,191311,191312,191401,191402,191403,191404,191405,191455,191406,191407,191408,191409,191410,191411,191412,191501,191502,191503,191504,191505,191506,191507,191508,191509,191510,191511,191512,191601,191602,191603,191604,191605,191606,191607,191608,191609,191610,191611,191612,191701,191702,191752,191703,191704,191705,191706,191707,191708,191709,191710,191711,191712,191801,191802,191803,191804,191805,191806,191807,191808,191809,191810,191811,191812,191901,191902,191903,191904,191905,191906,191907,191957,191908,191909,191910,191911,191912,192001,192002,192003,192004,192005,192006,192007,192008,192009,192010,192011,192012,192101,192102,192103,192104,192105,192106,192107,192108,192109,192110,192111,192112,192201,192202,192203,192204,192205,192255,192206,192207,192208,192209,192210,192211,192212,192301,192302,192303,192304,192305,192306,192307,192308,192309,192310,192311,192312,192401,192402,192403,192404,192405,192406,192407,192408,192409,192410,192411,192412,192501,192502,192503,192504,192554,192505,192506,192507,192508,192509,192510,192511,192512,192601,192602,192603,192604,192605,192606,192607,192608,192609,192610,192611,192612,192701,192702,192703,192704,192705,192706,192707,192708,192709,192710,192711,192712,192801,192802,192852,192803,192804,192805,192806,192807,192808,192809,192810,192811,192812,192901,192902,192903,192904,192905,192906,192907,192908,192909,192910,192911,192912,193001,193002,193003,193004,193005,193006,193056,193007,193008,193009,193010,193011,193012,193101,193102,193103,193104,193105,193106,193107,193108,193109,193110,193111,193112,193201,193202,193203,193204,193205,193206,193207,193208,193209,193210,193211,193212,193301,193302,193303,193304,193305,193355,193306,193307,193308,193309,193310,193311,193312,193401,193402,193403,193404,193405,193406,193407,193408,193409,193410,193411,193412,193501,193502,193503,193504,193505,193506,193507,193508,193509,193510,193511,193512,193601,193602,193603,193653,193604,193605,193606,193607,193608,193609,193610,193611,193612,193701,193702,193703,193704,193705,193706,193707,193708,193709,193710,193711,193712,193801,193802,193803,193804,193805,193806,193807,193857,193808,193809,193810,193811,193812,193901,193902,193903,193904,193905,193906,193907,193908,193909,193910,193911,193912,194001,194002,194003,194004,194005,194006,194007,194008,194009,194010,194011,194012,194101,194102,194103,194104,194105,194106,194156,194107,194108,194109,194110,194111,194112,194201,194202,194203,194204,194205,194206,194207,194208,194209,194210,194211,194212,194301,194302,194303,194304,194305,194306,194307,194308,194309,194310,194311,194312,194401,194402,194403,194404,194454,194405,194406,194407,194408,194409,194410,194411,194412,194501,194502,194503,194504,194505,194506,194507,194508,194509,194510,194511,194512,194601,194602,194603,194604,194605,194606,194607,194608,194609,194610,194611,194612,194701,194702,194752,194703,194704,194705,194706,194707,194708,194709,194710,194711,194712,194801,194802,194803,194804,194805,194806,194807,194808,194809,194810,194811,194812,194901,194902,194903,194904,194905,194906,194907,194957,194908,194909,194910,194911,194912,195001,195002,195003,195004,195005,195006,195007,195008,195009,195010,195011,195012,195101,195102,195103,195104,195105,195106,195107,195108,195109,195110,195111,195112,195201,195202,195203,195204,195205,195255,195206,195207,195208,195209,195210,195211,195212,195301,195302,195303,195304,195305,195306,195307,195308,195309,195310,195311,195312,195401,195402,195403,195404,195405,195406,195407,195408,195409,195410,195411,195412,195501,195502,195503,195553,195504,195505,195506,195507,195508,195509,195510,195511,195512,195601,195602,195603,195604,195605,195606,195607,195608,195609,195610,195611,195612,195701,195702,195703,195704,195705,195706,195707,195708,195758,195709,195710,195711,195712,195801,195802,195803,195804,195805,195806,195807,195808,195809,195810,195811,195812,195901,195902,195903,195904,195905,195906,195907,195908,195909,195910,195911,195912,196001,196002,196003,196004,196005,196006,196056,196007,196008,196009,196010,196011,196012,196101,196102,196103,196104,196105,196106,196107,196108,196109,196110,196111,196112,196201,196202,196203,196204,196205,196206,196207,196208,196209,196210,196211,196212,196301,196302,196303,196304,196354,196305,196306,196307,196308,196309,196310,196311,196312,196401,196402,196403,196404,196405,196406,196407,196408,196409,196410,196411,196412,196501,196502,196503,196504,196505,196506,196507,196508,196509,196510,196511,196512,196601,196602,196603,196653,196604,196605,196606,196607,196608,196609,196610,196611,196612,196701,196702,196703,196704,196705,196706,196707,196708,196709,196710,196711,196712,196801,196802,196803,196804,196805,196806,196807,196857,196808,196809,196810,196811,196812,196901,196902,196903,196904,196905,196906,196907,196908,196909,196910,196911,196912,197001,197002,197003,197004,197005,197006,197007,197008,197009,197010,197011,197012,197101,197102,197103,197104,197105,197155,197106,197107,197108,197109,197110,197111,197112,197201,197202,197203,197204,197205,197206,197207,197208,197209,197210,197211,197212,197301,197302,197303,197304,197305,197306,197307,197308,197309,197310,197311,197312,197401,197402,197403,197404,197454,197405,197406,197407,197408,197409,197410,197411,197412,197501,197502,197503,197504,197505,197506,197507,197508,197509,197510,197511,197512,197601,197602,197603,197604,197605,197606,197607,197608,197658,197609,197610,197611,197612,197701,197702,197703,197704,197705,197706,197707,197708,197709,197710,197711,197712,197801,197802,197803,197804,197805,197806,197807,197808,197809,197810,197811,197812,197901,197902,197903,197904,197905,197906,197956,197907,197908,197909,197910,197911,197912,198001,198002,198003,198004,198005,198006,198007,198008,198009,198010,198011,198012,198101,198102,198103,198104,198105,198106,198107,198108,198109,198110,198111,198112,198201,198202,198203,198204,198254,198205,198206,198207,198208,198209,198210,198211,198212,198301,198302,198303,198304,198305,198306,198307,198308,198309,198310,198311,198312,198401,198402,198403,198404,198405,198406,198407,198408,198409,198410,198460,198411,198412,198501,198502,198503,198504,198505,198506,198507,198508,198509,198510,198511,198512,198601,198602,198603,198604,198605,198606,198607,198608,198609,198610,198611,198612,198701,198702,198703,198704,198705,198706,198756,198707,198708,198709,198710,198711,198712,198801,198802,198803,198804,198805,198806,198807,198808,198809,198810,198811,198812,198901,198902,198903,198904,198905,198906,198907,198908,198909,198910,198911,198912,199001,199002,199003,199004,199005,199055,199006,199007,199008,199009,199010,199011,199012,199101,199102,199103,199104,199105,199106,199107,199108,199109,199110,199111,199112,199201,199202,199203,199204,199205,199206,199207,199208,199209,199210,199211,199212,199301,199302,199303,199353,199304,199305,199306,199307,199308,199309,199310,199311,199312,199401,199402,199403,199404,199405,199406,199407,199408,199409,199410,199411,199412,199501,199502,199503,199504,199505,199506,199507,199508,199558,199509,199510,199511,199512,199601,199602,199603,199604,199605,199606,199607,199608,199609,199610,199611,199612,199701,199702,199703,199704,199705,199706,199707,199708,199709,199710,199711,199712,199801,199802,199803,199804,199805,199855,199806,199807,199808,199809,199810,199811,199812,199901,199902,199903,199904,199905,199906,199907,199908,199909,199910,199911,199912,200001,200002,200003,200004,200005,200006,200007,200008,200009,200010,200011,200012,200101,200102,200103,200104,200154,200105,200106,200107,200108,200109,200110,200111,200112,200201,200202,200203,200204,200205,200206,200207,200208,200209,200210,200211,200212,200301,200302,200303,200304,200305,200306,200307,200308,200309,200310,200311,200312,200401,200402,200452,200403,200404,200405,200406,200407,200408,200409,200410,200411,200412,200501,200502,200503,200504,200505,200506,200507,200508,200509,200510,200511,200512,200601,200602,200603,200604,200605,200606,200607,200657,200608,200609,200610,200611,200612,200701,200702,200703,200704,200705,200706,200707,200708,200709,200710,200711,200712,200801,200802,200803,200804,200805,200806,200807,200808,200809,200810,200811,200812,200901,200902,200903,200904,200905,200955,200906,200907,200908,200909,200910,200911,200912,201001,201002,201003,201004,201005,201006,201007,201008,201009,201010,201011,201012,201101,201102,201103,201104,201105,201106,201107,201108,201109,201110,201111,201112,201201,201202,201203,201253,201204,201205,201206,201207,201208,201209,201210,201211,201212,201301,201302,201303,201304,201305,201306,201307,201308,201309,201310,201311,201312,201401,201402,201403,201404,201405,201406,201407,201408,201409,201459,201410,201411,201412,201501,201502,201503,201504,201505,201506,201507,201508,201509,201510,201511,201512,201601,201602,201603,201604,201605,201606,201607,201608,201609,201610,201611,201612,201701,201702,201703,201704,201705,201755,201706,201707,201708,201709,201710,201711,201712,201801,201802,201803,201804,201805,201806,201807,201808,201809,201810,201811,201812,201901,201902,201903,201904,201905,201906,201907,201908,201909,201910,201911,201912,202001,202002,202003,202004,202054,202005,202006,202007,202008,202009,202010,202011,202012,202101,202102,202103,202104,202105,202106,202107,202108,202109,202110,202111,202112,202201,202202,202203,202204,202205,202206,202207,202208,202209,202210,202211,202212,202301,202302,202352,202303,202304,202305,202306,202307,202308,202309,202310,202311,202312,202401,202402,202403,202404,202405,202406,202407,202408,202409,202410,202411,202412,202501,202502,202503,202504,202505,202506,202556,202507,202508,202509,202510,202511,202512,202601,202602,202603,202604,202605,202606,202607,202608,202609,202610,202611,202612,202701,202702,202703,202704,202705,202706,202707,202708,202709,202710,202711,202712,202801,202802,202803,202804,202805,202855,202806,202807,202808,202809,202810,202811,202812,202901,202902,202903,202904,202905,202906,202907,202908,202909,202910,202911,202912,203001,203002,203003,203004,203005,203006,203007,203008,203009,203010,203011,203012,203101,203102,203103,203153,203104,203105,203106,203107,203108,203109,203110,203111,203112,203201,203202,203203,203204,203205,203206,203207,203208,203209,203210,203211,203212,203301,203302,203303,203304,203305,203306,203307,203308,203309,203310,203311,203361,203312,203401,203402,203403,203404,203405,203406,203407,203408,203409,203410,203411,203412,203501,203502,203503,203504,203505,203506,203507,203508,203509,203510,203511,203512,203601,203602,203603,203604,203605,203606,203656,203607,203608,203609,203610,203611,203612,203701,203702,203703,203704,203705,203706,203707,203708,203709,203710,203711,203712,203801,203802,203803,203804,203805,203806,203807,203808,203809,203810,203811,203812,203901,203902,203903,203904,203905,203955,203906,203907,203908,203909,203910,203911,203912,204001,204002,204003,204004,204005,204006,204007,204008,204009,204010,204011,204012,204101,204102,204103,204104,204105,204106,204107,204108,204109,204110,204111,204112,204201,204202,204252,204203,204204,204205,204206,204207,204208,204209,204210,204211,204212,204301,204302,204303,204304,204305,204306,204307,204308,204309,204310,204311,204312,204401,204402,204403,204404,204405,204406,204407,204457,204408,204409,204410,204411,204412,204501,204502,204503,204504,204505,204506,204507,204508,204509,204510,204511,204512,204601,204602,204603,204604,204605,204606,204607,204608,204609,204610,204611,204612,204701,204702,204703,204704,204705,204755,204706,204707,204708,204709,204710,204711,204712,204801,204802,204803,204804,204805,204806,204807,204808,204809,204810,204811,204812,204901,204902,204903,204904,204905,204906,204907,204908,204909,204910,204911,204912,205001,205002,205003,205053,205004,205005,205006,205007,205008,205009,205010,205011];
+  var LUNAR_OFFSETS = [0,30,59,89,118,147,177,206,236,266,295,325,355,384,414,443,473,502,531,561,590,620,649,679,709,739,768,798,827,857,886,915,945,974,1004,1033,1063,1093,1123,1152,1182,1211,1241,1270,1299,1329,1358,1387,1417,1447,1476,1506,1536,1566,1595,1625,1654,1683,1713,1742,1771,1801,1831,1860,1890,1920,1949,1979,2009,2038,2067,2097,2126,2156,2185,2215,2244,2274,2304,2333,2363,2392,2422,2451,2481,2510,2540,2569,2599,2628,2658,2687,2717,2746,2776,2806,2835,2865,2894,2924,2953,2983,3012,3041,3071,3101,3130,3160,3189,3219,3249,3278,3308,3337,3367,3396,3425,3455,3484,3514,3543,3573,3603,3633,3662,3692,3721,3751,3780,3809,3839,3868,3898,3927,3957,3987,4017,4046,4076,4105,4135,4164,4193,4223,4252,4281,4311,4341,4370,4400,4430,4460,4489,4519,4548,4577,4607,4636,4665,4695,4725,4754,4784,4814,4844,4873,4903,4932,4961,4991,5020,5049,5079,5108,5138,5168,5198,5227,5257,5287,5316,5345,5375,5404,5434,5463,5492,5522,5552,5581,5611,5641,5670,5700,5729,5759,5788,5818,5847,5877,5906,5936,5965,5995,6024,6054,6084,6113,6143,6172,6202,6231,6261,6290,6319,6349,6378,6408,6438,6467,6497,6527,6556,6586,6615,6645,6674,6703,6733,6762,6792,6821,6851,6881,6911,6940,6970,6999,7029,7058,7087,7117,7146,7176,7205,7235,7265,7294,7324,7354,7383,7413,7442,7471,7501,7530,7559,7589,7619,7648,7678,7708,7738,7767,7797,7826,7855,7885,7914,7943,7973,8002,8032,8062,8092,8121,8151,8181,8210,8239,8269,8298,8327,8357,8386,8416,8446,8475,8505,8535,8564,8594,8623,8653,8682,8712,8741,8770,8800,8830,8859,8889,8918,8948,8978,9007,9037,9066,9096,9125,9154,9184,9213,9243,9273,9302,9332,9361,9391,9421,9450,9480,9509,9539,9568,9597,9627,9656,9686,9715,9745,9775,9804,9834,9864,9893,9923,9952,9981,10011,10040,10070,10099,10129,10159,10188,10218,10248,10277,10307,10336,10365,10395,10424,10453,10483,10513,10542,10572,10602,10632,10661,10691,10720,10749,10779,10808,10837,10867,10896,10926,10956,10986,11015,11045,11075,11104,11133,11163,11192,11221,11251,11280,11310,11340,11369,11399,11429,11459,11488,11517,11547,11576,11605,11635,11664,11694,11723,11753,11783,11813,11842,11872,11901,11931,11960,11989,12019,12048,12078,12107,12137,12167,12196,12226,12256,12285,12315,12344,12374,12403,12432,12462,12491,12521,12550,12580,12610,12639,12669,12699,12728,12758,12787,12817,12846,12875,12905,12934,12964,12993,13023,13053,13082,13112,13142,13171,13201,13230,13259,13289,13318,13348,13377,13407,13436,13466,13496,13526,13555,13585,13614,13643,13673,13702,13731,13761,13790,13820,13850,13880,13909,13939,13969,13998,14027,14057,14086,14115,14145,14174,14204,14234,14263,14293,14323,14353,14382,14411,14441,14470,14499,14529,14558,14588,14617,14647,14677,14707,14736,14766,14795,14825,14854,14883,14913,14942,14972,15001,15031,15061,15090,15120,15150,15179,15209,15238,15267,15297,15326,15356,15385,15415,15444,15474,15504,15533,15563,15593,15622,15652,15681,15710,15740,15769,15799,15828,15858,15887,15917,15947,15976,16006,16036,16065,16095,16124,16153,16183,16212,16242,16271,16301,16330,16360,16390,16419,16449,16479,16508,16537,16567,16596,16625,16655,16684,16714,16744,16774,16803,16833,16863,16892,16921,16951,16980,17009,17039,17068,17098,17128,17157,17187,17217,17247,17276,17305,17335,17364,17393,17423,17452,17482,17511,17541,17571,17601,17630,17660,17689,17719,17748,17777,17807,17836,17866,17895,17925,17955,17985,18014,18044,18073,18103,18132,18161,18191,18220,18250,18279,18309,18339,18368,18398,18428,18457,18487,18516,18545,18575,18604,18634,18663,18693,18722,18752,18782,18811,18841,18870,18900,18929,18959,18988,19018,19047,19077,19106,19136,19165,19195,19225,19254,19284,19313,19343,19372,19402,19431,19461,19490,19519,19549,19579,19608,19638,19668,19697,19727,19757,19786,19815,19845,19874,19903,19933,19962,19992,20022,20051,20081,20111,20141,20170,20199,20229,20258,20287,20317,20346,20376,20405,20435,20465,20495,20524,20554,20583,20613,20642,20671,20701,20730,20760,20789,20819,20849,20879,20908,20938,20967,20997,21026,21055,21085,21114,21144,21173,21203,21233,21262,21292,21322,21351,21381,21410,21439,21469,21498,21528,21557,21587,21616,21646,21676,21705,21735,21764,21794,21823,21853,21882,21912,21941,21971,22000,22030,22059,22089,22119,22148,22178,22207,22237,22266,22296,22325,22355,22384,22414,22443,22473,22502,22532,22562,22591,22621,22650,22680,22709,22739,22768,22797,22827,22856,22886,22916,22945,22975,23005,23034,23064,23093,23123,23152,23181,23211,23240,23270,23299,23329,23359,23389,23418,23448,23477,23507,23536,23565,23595,23624,23654,23683,23713,23743,23773,23802,23832,23861,23891,23920,23949,23979,24008,24037,24067,24097,24127,24156,24186,24216,24245,24275,24304,24333,24363,24392,24421,24451,24481,24510,24540,24570,24599,24629,24659,24688,24717,24747,24776,24806,24835,24865,24894,24924,24954,24983,25013,25042,25072,25101,25131,25160,25190,25219,25249,25278,25308,25337,25367,25396,25426,25456,25485,25515,25544,25574,25603,25633,25662,25691,25721,25751,25780,25810,25839,25869,25899,25928,25958,25987,26017,26046,26075,26105,26134,26164,26193,26223,26253,26283,26312,26342,26371,26401,26430,26459,26489,26518,26548,26577,26607,26637,26667,26696,26726,26755,26785,26814,26843,26873,26902,26931,26961,26991,27021,27050,27080,27110,27139,27169,27198,27227,27257,27286,27315,27345,27375,27404,27434,27464,27494,27523,27553,27582,27611,27641,27670,27699,27729,27758,27788,27818,27848,27877,27907,27936,27966,27995,28025,28054,28084,28113,28142,28172,28202,28231,28261,28291,28320,28350,28379,28409,28438,28468,28497,28526,28556,28586,28615,28645,28674,28704,28734,28763,28793,28822,28852,28881,28911,28940,28969,28999,29028,29058,29088,29117,29147,29177,29206,29236,29265,29295,29324,29353,29383,29412,29442,29471,29501,29531,29560,29590,29620,29649,29679,29708,29737,29767,29796,29825,29855,29885,29914,29944,29974,30004,30033,30063,30092,30121,30151,30180,30209,30239,30269,30298,30328,30358,30388,30417,30447,30476,30505,30535,30564,30593,30623,30652,30682,30712,30742,30771,30801,30831,30860,30889,30919,30948,30977,31007,31036,31066,31096,31125,31155,31185,31214,31244,31273,31303,31332,31361,31391,31420,31450,31479,31509,31539,31568,31598,31628,31657,31687,31716,31746,31775,31804,31834,31863,31893,31923,31952,31982,32011,32041,32071,32100,32130,32159,32189,32218,32247,32277,32306,32336,32365,32395,32425,32454,32484,32514,32543,32573,32602,32631,32661,32690,32720,32749,32779,32809,32838,32868,32898,32927,32957,32986,33015,33045,33074,33103,33133,33163,33192,33222,33252,33282,33311,33341,33370,33399,33429,33458,33487,33517,33546,33576,33606,33636,33665,33695,33725,33754,33783,33813,33842,33871,33901,33930,33960,33990,34019,34049,34079,34108,34138,34167,34197,34226,34255,34285,34314,34344,34373,34403,34433,34463,34492,34522,34551,34581,34610,34639,34669,34698,34728,34757,34787,34817,34846,34876,34906,34935,34965,34994,35024,35053,35082,35112,35141,35171,35200,35230,35260,35289,35319,35348,35378,35408,35437,35467,35496,35525,35555,35584,35614,35643,35673,35703,35732,35762,35792,35821,35851,35880,35909,35939,35968,35997,36027,36057,36086,36116,36146,36176,36205,36235,36264,36293,36323,36352,36381,36411,36440,36470,36500,36530,36559,36589,36619,36648,36677,36707,36736,36765,36795,36824,36854,36884,36913,36943,36973,37003,37032,37061,37091,37120,37149,37179,37208,37238,37267,37297,37327,37357,37386,37416,37445,37475,37504,37533,37563,37592,37622,37651,37681,37711,37740,37770,37800,37829,37859,37888,37917,37947,37976,38006,38035,38065,38094,38124,38154,38183,38213,38242,38272,38301,38331,38360,38390,38419,38449,38478,38508,38537,38567,38597,38626,38656,38686,38715,38744,38774,38803,38833,38862,38892,38921,38951,38980,39010,39040,39069,39099,39129,39158,39187,39217,39246,39275,39305,39334,39364,39394,39424,39453,39483,39513,39542,39571,39601,39630,39659,39689,39718,39748,39778,39807,39837,39867,39897,39926,39955,39985,40014,40043,40073,40102,40132,40161,40191,40221,40251,40280,40310,40339,40369,40398,40427,40457,40486,40516,40545,40575,40605,40634,40664,40694,40723,40753,40782,40811,40841,40870,40900,40929,40959,40988,41018,41048,41078,41107,41137,41166,41195,41225,41254,41284,41313,41343,41372,41402,41432,41461,41491,41520,41550,41579,41609,41638,41668,41697,41727,41756,41786,41815,41845,41874,41904,41934,41963,41993,42022,42052,42081,42111,42140,42169,42199,42228,42258,42288,42318,42347,42377,42406,42436,42465,42495,42524,42553,42583,42612,42642,42672,42701,42731,42761,42790,42820,42849,42879,42908,42937,42967,42996,43026,43055,43085,43115,43145,43174,43204,43233,43263,43292,43321,43351,43380,43410,43439,43469,43499,43529,43558,43588,43617,43647,43676,43705,43735,43764,43794,43823,43853,43883,43912,43942,43972,44001,44031,44060,44089,44119,44148,44178,44207,44237,44266,44296,44326,44355,44385,44414,44444,44473,44503,44532,44562,44591,44621,44650,44680,44709,44739,44769,44798,44828,44857,44887,44916,44946,44975,45005,45034,45064,45093,45123,45152,45182,45212,45241,45271,45300,45330,45359,45389,45418,45447,45477,45506,45536,45566,45595,45625,45655,45684,45714,45743,45773,45802,45831,45861,45890,45920,45949,45979,46009,46039,46068,46098,46127,46157,46186,46215,46245,46274,46304,46333,46363,46393,46423,46452,46482,46511,46541,46570,46599,46629,46658,46687,46717,46747,46777,46806,46836,46866,46895,46925,46954,46983,47013,47042,47071,47101,47131,47160,47190,47220,47249,47279,47309,47338,47367,47397,47426,47455,47485,47515,47544,47574,47603,47633,47663,47692,47722,47751,47781,47810,47840,47869,47899,47928,47958,47987,48017,48046,48076,48106,48135,48165,48194,48224,48253,48283,48312,48341,48371,48400,48430,48460,48489,48519,48549,48578,48608,48637,48667,48696,48725,48755,48784,48814,48843,48873,48903,48933,48962,48992,49021,49051,49080,49109,49139,49168,49198,49227,49257,49287,49317,49346,49376,49405,49435,49464,49493,49523,49552,49581,49611,49641,49670,49700,49730,49760,49789,49819,49848,49877,49907,49936,49965,49995,50025,50054,50084,50114,50144,50173,50203,50232,50261,50291,50320,50349,50379,50408,50438,50468,50498,50527,50557,50586,50616,50645,50675,50704,50733,50763,50792,50822,50852,50881,50911,50941,50970,51000,51029,51059,51088,51118,51147,51176,51206,51235,51265,51295,51324,51354,51384,51413,51443,51472,51502,51531,51561,51590,51619,51649,51678,51708,51738,51767,51797,51827,51856,51886,51915,51945,51974,52003,52033,52062,52092,52121,52151,52181,52210,52240,52270,52299,52329,52358,52387,52417,52446,52475,52505,52535,52564,52594,52624,52654,52683,52713,52742,52771,52801,52830,52859,52889,52918,52948,52978,53008,53038,53067,53097,53126,53155,53185,53214,53243,53273,53302,53332,53362,53392,53421,53451,53481,53510,53539,53569,53598,53627,53657,53686,53716,53746,53775,53805,53835,53864,53894,53923,53953,53982,54011,54041,54070,54100,54129,54159,54189,54218,54248,54278,54307,54337,54366,54396,54425,54454,54484,54513,54543,54572,54602,54632,54661,54691,54721,54750,54780,54809,54839,54868,54897,54927,54956,54986,55015,55045,55075,55104,55134];
+  var LUNAR_MIN_YEAR = 1900, LUNAR_MAX_YEAR = 2050;
+
+  function jdToGregorian(jd){
+    var l = jd + 68569;
+    var n = Math.floor((4 * l) / 146097);
+    l = l - Math.floor((146097 * n + 3) / 4);
+    var i = Math.floor((4000 * (l + 1)) / 1461001);
+    l = l - Math.floor((1461 * i) / 4) + 31;
+    var j = Math.floor((80 * l) / 2447);
+    var day = l - Math.floor((2447 * j) / 80);
+    l = Math.floor(j / 11);
+    var month = j + 2 - 12 * l;
+    var year = 100 * (n - 49) + i + l;
+    return { year: year, month: month, day: day };
+  }
+
+  function lunarToSolar(lunarYear, lunarMonth, lunarDay, isLeap){
+    var key = lunarYear * 100 + lunarMonth + (isLeap ? 50 : 0);
+    var idx = LUNAR_KEYS.indexOf(key);
+    if (idx === -1) return null;
+    var startOffset = LUNAR_OFFSETS[idx];
+    var nextOffset = idx + 1 < LUNAR_OFFSETS.length ? LUNAR_OFFSETS[idx + 1] : startOffset + 30;
+    var monthLength = nextOffset - startOffset;
+    if (lunarDay < 1 || lunarDay > monthLength) return null;
+    return jdToGregorian(LUNAR_BASE_JD + startOffset + (lunarDay - 1));
+  }
+
+  function nextOccurrenceLunar(entry, today){
+    var startYear = today.getFullYear() - 1;
+    var found = [];
+    for (var ly = startYear; ly <= startYear + 3; ly++){
+      var solar = lunarToSolar(ly, entry.month, entry.day, !!entry.isLeapMonth);
+      if (!solar && entry.isLeapMonth) solar = lunarToSolar(ly, entry.month, entry.day, false);
+      if (solar){
+        var d = new Date(solar.year, solar.month - 1, solar.day);
+        d.setHours(0,0,0,0);
+        found.push(d);
+      }
+    }
+    found = found.filter(function(d){ return d >= today; }).sort(function(a,b){ return a - b; });
+    return found.length ? found[0] : null;
+  }
+
+  function nextOccurrence(entry, today){
+    if (entry.calendarType === 'lunar'){
+      var lunarOcc = nextOccurrenceLunar(entry, today);
+      if (lunarOcc) return lunarOcc;
+    }
+    var y = today.getFullYear();
+    var candidate = new Date(y, entry.month-1, entry.day);
+    candidate.setHours(0,0,0,0);
+    if (candidate < today) candidate = new Date(y+1, entry.month-1, entry.day);
+    return candidate;
+  }
+
+  function diffDays(a, b){
+    return Math.round((a.getTime() - b.getTime()) / 86400000);
+  }
+
+  function ordinal(n){
+    var mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 13) return n + 'th';
+    switch (n % 10){
+      case 1: return n + 'st';
+      case 2: return n + 'nd';
+      case 3: return n + 'rd';
+      default: return n + 'th';
+    }
+  }
+  function ageLabel(entry, years){
+    if (entry.eventType === 'birthday') return years + (lang==='ko' ? '세' : 'yo');
+    return lang==='ko' ? years + '주년' : ordinal(years) + ' anniversary';
+  }
+  var BIRTHDAY_MILESTONES = {
+    1:{ko:'돌', en:'1st Birthday'},
+    60:{ko:'환갑', en:'60th Birthday'},
+    70:{ko:'칠순', en:'70th Birthday'},
+    80:{ko:'팔순', en:'80th Birthday'}
+  };
+  var ANNIVERSARY_MILESTONE_YEARS = [10,20,25,30,40,50];
+  function milestoneLabel(entry, years){
+    if (entry.eventType === 'birthday'){
+      var m = BIRTHDAY_MILESTONES[years];
+      return m ? m[lang] || m.ko : null;
+    }
+    return ANNIVERSARY_MILESTONE_YEARS.indexOf(years) !== -1 ? ageLabel(entry, years) : null;
+  }
+  function ageSuffixForMessage(entry, years){
+    var milestone = milestoneLabel(entry, years);
+    if (entry.eventType === 'birthday'){
+      if (milestone) return ' (' + milestone + (lang==='ko' ? '' : ' 🎉') + ')';
+      return lang==='ko' ? ' (' + years + '번째 생일)' : ' (turning ' + years + ')';
+    }
+    return lang==='ko' ? ' (' + years + '주년)' : ' (' + ordinal(years) + ' anniversary)';
+  }
+  function ageNoteForPrompt(entry, years){
+    var milestone = milestoneLabel(entry, years);
+    if (entry.eventType === 'birthday'){
+      if (milestone) return lang==='ko' ? (' 이번이 특별한 ' + milestone + '이야.') : (' This is their ' + milestone + ' — a significant Korean milestone birthday.');
+      return lang==='ko' ? (' 이번이 ' + years + '번째 생일이야.') : (' This is their ' + ordinal(years) + ' birthday.');
+    }
+    return lang==='ko' ? (' 이번이 ' + years + '주년이야.') : (' This is their ' + ordinal(years) + ' anniversary.');
+  }
+
+  function guessRelationship(text){
+    if (!text) return 'other';
+    var low = String(text).toLowerCase();
+    for (var key in REL_KEYWORDS){
+      if (REL_KEYWORDS[key].some(function(k){ return low.indexOf(k.toLowerCase()) >= 0; })) return key;
+    }
+    return 'other';
+  }
+
+  var KNOWN_RELATIONSHIP_KEYS = ['family','friend','lover','coworker','other'];
+  function relationshipDisplay(rel){
+    var norm = String(rel || '').trim().toLowerCase();
+    if (KNOWN_RELATIONSHIP_KEYS.indexOf(norm) !== -1) return t('rel' + capitalize(norm));
+    return rel || '';
+  }
+  function updateRelationshipDatalist(){
+    var list = document.getElementById('relationshipList');
+    var values = KNOWN_RELATIONSHIP_KEYS.map(function(k){ return t('rel' + capitalize(k)); });
+    entries.forEach(function(e){
+      var norm = String(e.relationship || '').trim().toLowerCase();
+      if (norm && KNOWN_RELATIONSHIP_KEYS.indexOf(norm) === -1 && values.indexOf(e.relationship) === -1) values.push(e.relationship);
+    });
+    list.innerHTML = values.map(function(v){ return '<option value="' + escapeHtml(v) + '">'; }).join('');
+  }
+
+  /* ---------- CSV parsing ---------- */
+  function parseCSV(text){
+    var rows = []; var row = []; var field = ''; var inQuotes = false;
+    text = text.replace(/^﻿/, '');
+    for (var i=0; i<text.length; i++){
+      var c = text[i];
+      if (inQuotes){
+        if (c === '"'){
+          if (text[i+1] === '"'){ field += '"'; i++; } else { inQuotes = false; }
+        } else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ','){ row.push(field); field=''; }
+        else if (c === '\r'){ /* skip */ }
+        else if (c === '\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+        else field += c;
+      }
+    }
+    if (field.length || row.length){ row.push(field); rows.push(row); }
+    return rows.filter(function(r){ return r.some(function(cell){ return cell !== ''; }); });
+  }
+
+  var NOTE_KEYWORDS = { birthday:['생일','태어난','birthday'], anniversary:['기념일','결혼기념일','사귄','만난','anniversary'] };
+  function scanNotesForDates(notes){
+    if (!notes) return [];
+    var found = [];
+    var lines = String(notes).split(/[\n;]+/);
+    lines.forEach(function(line){
+      var type = null;
+      for (var key in NOTE_KEYWORDS){
+        if (NOTE_KEYWORDS[key].some(function(k){ return line.indexOf(k) >= 0; })){ type = key; break; }
+      }
+      if (!type) return;
+      var m = line.match(/(\d{4})[.\-\/년]\s*(\d{1,2})[.\-\/월]\s*(\d{1,2})일?/) ||
+              line.match(/(\d{1,2})[.\-\/월]\s*(\d{1,2})일?/);
+      if (!m) return;
+      var year=null, month, day;
+      if (m.length === 4){ year=+m[1]; month=+m[2]; day=+m[3]; }
+      else { month=+m[1]; day=+m[2]; }
+      if (isValidMonthDay(month, day)) found.push({ type:type, year:year, month:month, day:day, line:line.trim() });
+    });
+    return found;
+  }
+
+  /* ---------- Sample entries (shown only while the list is empty) ---------- */
+  function addDaysToToday(n){
+    var d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + n);
+    return { month: d.getMonth()+1, day: d.getDate() };
+  }
+  function getSampleEntries(){
+    var soon = addDaysToToday(3), later = addDaysToToday(12);
+    return [
+      { id:'sample-ko', isSample:true, name:'김민준', relationship:'family', eventType:'birthday', month:soon.month, day:soon.day, year:null, leadDays:null },
+      { id:'sample-en', isSample:true, name:'Emma Carter', relationship:'friend', eventType:'anniversary', month:later.month, day:later.day, year:null, leadDays:null }
+    ];
+  }
+
+  /* ---------- Rendering: dashboard ---------- */
+  function renderEntryList(){
+    updateRelationshipDatalist();
+    var list = document.getElementById('entryList');
+    list.innerHTML = '';
+    var today = new Date(); today.setHours(0,0,0,0);
+    var isSampleMode = !entries.length;
+    var source = isSampleMode ? getSampleEntries() : entries;
+
+    document.getElementById('listToolbar').hidden = isSampleMode;
+    if (isSampleMode){
+      var hint = document.createElement('p');
+      hint.className = 'sample-hint';
+      hint.textContent = t('sampleHint');
+      list.appendChild(hint);
+    }
+
+    var searchQuery = document.getElementById('searchInput').value.trim().toLowerCase();
+    var filterMode = document.getElementById('filterSelect').value;
+    var sortMode = document.getElementById('sortSelect').value;
+
+    var rows = source
+      .filter(function(e){ return !searchQuery || e.name.toLowerCase().indexOf(searchQuery) >= 0; })
+      .map(function(e){
+        var occ = nextOccurrence(e, today);
+        return { entry:e, occ:occ, diff:diffDays(occ, today) };
+      });
+
+    if (!isSampleMode){
+      rows = rows.filter(function(item){
+        if (filterMode === 'today') return item.diff === 0;
+        if (filterMode === '7') return item.diff <= 7;
+        if (filterMode === '30') return item.diff <= 30;
+        return true;
+      });
+    }
+
+    rows.sort(function(a, b){
+      if (sortMode === 'name') return a.entry.name.localeCompare(b.entry.name);
+      if (sortMode === 'relationship' && a.entry.relationship !== b.entry.relationship) return a.entry.relationship.localeCompare(b.entry.relationship);
+      return a.diff - b.diff;
+    });
+
+    if (!isSampleMode && !rows.length){
+      var none = document.createElement('div');
+      none.className = 'empty-state';
+      none.innerHTML = '<strong>' + t('noResultsTitle') + '</strong>' +
+        '<span>' + t('noResultsDesc') + '</span>' +
+        '<button type="button" class="btn btn-sm">' + t('btnResetFilters') + '</button>';
+      none.querySelector('button').addEventListener('click', function(){
+        document.getElementById('searchInput').value = '';
+        document.getElementById('filterSelect').value = 'all';
+        renderEntryList();
+      });
+      list.appendChild(none);
+    }
+
+    rows.forEach(function(item){
+      var e = item.entry;
+      var leadDays = (e.leadDays != null && e.leadDays !== '') ? +e.leadDays : settings.leadDays;
+      var occYear = item.occ.getFullYear();
+      var acked = !e.isSample && item.diff === 0 && e.ackYear === occYear;
+      var card = document.createElement('div');
+      card.className = 'entry-card';
+      if (e.isSample) card.classList.add('is-sample');
+      else if (item.diff === 0 && !acked) card.classList.add('is-today');
+      else if (item.diff === 0 && acked) card.classList.add('is-acked');
+      else if (item.diff <= leadDays) card.classList.add('is-soon');
+
+      var ddayText = item.diff === 0 ? t('todayLabel') : (t('dDay') + item.diff);
+      var milestone = e.year ? milestoneLabel(e, occYear - e.year) : null;
+      var ageText = '';
+      if (e.year){
+        var isAnniversaryMilestone = milestone && e.eventType !== 'birthday';
+        ageText = isAnniversaryMilestone ? '' : ' · ' + ageLabel(e, occYear - e.year);
+      }
+      var milestoneTagHtml = milestone ? '<span class="tag milestone-tag">' + escapeHtml(milestone) + '</span>' : '';
+      var nameHtml = escapeHtml(e.name) + (e.isSample ? '<span class="sample-badge">' + t('sampleBadge') + '</span>' : '');
+      var ackHtml = '';
+      if (!e.isSample && item.diff === 0){
+        ackHtml = acked
+          ? '<span class="tag ack-tag">' + t('ackedTag') + '</span>'
+          : '<button type="button" class="btn btn-sm ack-btn" data-id="' + e.id + '">' + t('btnAck') + '</button>';
+      }
+      var actionsHtml = e.isSample ? '' :
+        '<div class="entry-actions">' +
+          ackHtml +
+          '<button type="button" class="btn btn-sm message-btn" data-id="' + e.id + '">' + t('messageModalTitle') + '</button>' +
+          '<button type="button" class="btn btn-sm edit-btn" data-id="' + e.id + '">' + t('btnEdit') + '</button>' +
+        '</div>';
+      card.innerHTML =
+        '<div class="entry-dday">' + ddayText + '</div>' +
+        '<div class="entry-main">' +
+          '<div class="entry-name">' + nameHtml + '</div>' +
+          '<div class="entry-meta">' +
+            '<span class="tag">' + escapeHtml(relationshipDisplay(e.relationship)) + '</span>' +
+            '<span class="tag">' + t('type' + capitalize(e.eventType)) + '</span>' +
+            (e.calendarType === 'lunar' ? '<span class="tag">' + t('tagLunar') + (e.isLeapMonth ? t('tagLeapSuffix') : '') + '</span>' : '') +
+            milestoneTagHtml +
+            pad2(e.month) + '/' + pad2(e.day) + ageText +
+          '</div>' +
+        '</div>' +
+        actionsHtml;
+      if (e.isSample) card.addEventListener('click', function(){ openEntryModal(null, e); });
+      list.appendChild(card);
+    });
+
+    list.querySelectorAll('.message-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){ openMessageModal(btn.dataset.id); });
+    });
+    list.querySelectorAll('.edit-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){ openEntryModal(btn.dataset.id); });
+    });
+    list.querySelectorAll('.ack-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var entry = entries.find(function(x){ return x.id === btn.dataset.id; });
+        if (!entry) return;
+        entry.ackYear = nextOccurrence(entry, today).getFullYear();
+        saveEntries(); renderEntryList();
+      });
+    });
+  }
+  document.getElementById('searchInput').addEventListener('input', renderEntryList);
+  document.getElementById('filterSelect').addEventListener('change', renderEntryList);
+  document.getElementById('sortSelect').addEventListener('change', renderEntryList);
+
+  function capitalize(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  /* ---------- Entry add/edit modal ---------- */
+  var editingId = null;
+  function openEntryModal(id, prefill){
+    editingId = id || null;
+    var e = id ? entries.find(function(x){ return x.id === id; }) : (prefill || null);
+    document.getElementById('entryModalTitle').textContent = id ? t('entryModalTitleEdit') : t('entryModalTitleAdd');
+    document.getElementById('entryName').value = e ? e.name : '';
+    document.getElementById('entryRelationship').value = e ? relationshipDisplay(e.relationship) : '';
+    document.getElementById('entryEventType').value = e ? e.eventType : 'birthday';
+    document.getElementById('entryMonth').value = e ? e.month : '';
+    document.getElementById('entryDay').value = e ? e.day : '';
+    document.getElementById('entryYear').value = e && e.year ? e.year : '';
+    document.getElementById('entryLeadDays').value = e && e.leadDays != null ? e.leadDays : '';
+    var calType = (e && e.calendarType === 'lunar') ? 'lunar' : 'solar';
+    document.getElementById('calSolarRadio').checked = calType === 'solar';
+    document.getElementById('calLunarRadio').checked = calType === 'lunar';
+    document.getElementById('entryLeapMonth').checked = !!(e && e.isLeapMonth);
+    document.getElementById('deleteEntryBtn').hidden = !id;
+    document.getElementById('entryModal').hidden = false;
+    updateEntryModalCalendarVisibility();
+    if (prefill){
+      var nameInput = document.getElementById('entryName');
+      nameInput.focus(); nameInput.select();
+    }
+  }
+  function updateEntryModalCalendarVisibility(){
+    var isBirthday = document.getElementById('entryEventType').value === 'birthday';
+    var isLunar = document.getElementById('calLunarRadio').checked;
+    document.getElementById('calendarTypeRow').hidden = !isBirthday;
+    document.getElementById('leapMonthField').hidden = !(isBirthday && isLunar);
+    document.getElementById('lunarRangeHint').hidden = !(isBirthday && isLunar);
+  }
+  document.getElementById('entryEventType').addEventListener('change', function(ev){
+    if (ev.target.value !== 'birthday'){
+      document.getElementById('calSolarRadio').checked = true;
+      document.getElementById('entryLeapMonth').checked = false;
+    }
+    updateEntryModalCalendarVisibility();
+  });
+  document.getElementById('calSolarRadio').addEventListener('change', updateEntryModalCalendarVisibility);
+  document.getElementById('calLunarRadio').addEventListener('change', updateEntryModalCalendarVisibility);
+  function closeEntryModal(){ document.getElementById('entryModal').hidden = true; editingId = null; }
+
+  document.getElementById('addEntryBtn').addEventListener('click', function(){ openEntryModal(null); });
+  document.getElementById('closeEntryModalBtn').addEventListener('click', closeEntryModal);
+  document.getElementById('cancelEntryBtn').addEventListener('click', closeEntryModal);
+  document.getElementById('deleteEntryBtn').addEventListener('click', function(){
+    entries = entries.filter(function(x){ return x.id !== editingId; });
+    var deleteOk = saveEntries(); renderEntryList(); closeEntryModal();
+    if (deleteOk) toast(t('toastDeleted'));
+  });
+  document.getElementById('saveEntryBtn').addEventListener('click', function(){
+    var name = document.getElementById('entryName').value.trim();
+    var month = +document.getElementById('entryMonth').value;
+    var day = +document.getElementById('entryDay').value;
+    if (!name){ toast(t('toastNeedName')); return; }
+    if (!isValidMonthDay(month, day)){ toast(t('toastNeedDate')); return; }
+    var yearRaw = document.getElementById('entryYear').value;
+    var leadRaw = document.getElementById('entryLeadDays').value;
+    var eventType = document.getElementById('entryEventType').value;
+    var isLunar = eventType === 'birthday' && document.getElementById('calLunarRadio').checked;
+    var data = {
+      id: editingId || ('e' + Date.now() + Math.random().toString(36).slice(2,7)),
+      name: name,
+      relationship: document.getElementById('entryRelationship').value.trim() || t('relOther'),
+      eventType: eventType,
+      month: month, day: day,
+      year: yearRaw ? +yearRaw : null,
+      leadDays: leadRaw ? +leadRaw : null,
+      calendarType: isLunar ? 'lunar' : 'solar',
+      isLeapMonth: isLunar && document.getElementById('entryLeapMonth').checked
+    };
+    if (editingId){
+      entries = entries.map(function(x){ return x.id === editingId ? data : x; });
+    } else {
+      entries.push(data);
+    }
+    var saveOk = saveEntries(); renderEntryList(); closeEntryModal();
+    if (saveOk) toast(t('toastSaved'));
+  });
+
+  /* ---------- Message modal ---------- */
+  var TEMPLATE_HISTORY_SIZE = 3;
+  function pickTemplate(entry, history, occ){
+    var relKey = guessRelationship(entry.relationship);
+    var bank = (TEMPLATES[lang] && TEMPLATES[lang][entry.eventType] && TEMPLATES[lang][entry.eventType][relKey]) ||
+               TEMPLATES.ko[entry.eventType][relKey] || TEMPLATES.ko[entry.eventType].other;
+    var recent = (history || []).slice(-TEMPLATE_HISTORY_SIZE);
+    var candidates = bank.map(function(_, i){ return i; }).filter(function(i){ return recent.indexOf(i) === -1; });
+    if (!candidates.length) candidates = bank.map(function(_, i){ return i; });
+    var idx = candidates[Math.floor(Math.random() * candidates.length)];
+    var text = bank[idx].replace(/\{name\}/g, entry.name);
+    if (entry.year && occ) text += ageSuffixForMessage(entry, occ.getFullYear() - entry.year);
+    return { text: text, index: idx };
+  }
+
+  function openMessageModal(id){
+    var e = entries.find(function(x){ return x.id === id; });
+    if (!e) return;
+    var today = new Date(); today.setHours(0,0,0,0);
+    messageState = { entry:e, history:(e.recentMessageIndexes || []).slice(), currentIndex:null, occ: nextOccurrence(e, today) };
+    renderMessage();
+    document.getElementById('messageModal').hidden = false;
+  }
+  function renderMessage(){
+    var box = document.getElementById('messageBox');
+    box.textContent = t('messageModalTitle') + ' ...';
+    messageState.currentIndex = null;
+    if (settings.aiEnabled && settings.aiKey){
+      generateAiMessage(messageState.entry, messageState.occ).then(function(text){
+        box.textContent = text;
+      }).catch(function(){
+        var picked = pickTemplate(messageState.entry, messageState.history, messageState.occ);
+        messageState.history.push(picked.index);
+        messageState.currentIndex = picked.index;
+        box.textContent = picked.text;
+        toast(t('toastAiFallback'));
+      });
+    } else {
+      var picked = pickTemplate(messageState.entry, messageState.history, messageState.occ);
+      messageState.history.push(picked.index);
+      messageState.currentIndex = picked.index;
+      box.textContent = picked.text;
+    }
+  }
+  document.getElementById('closeMessageModalBtn').addEventListener('click', function(){ document.getElementById('messageModal').hidden = true; });
+  document.getElementById('shuffleMessageBtn').addEventListener('click', renderMessage);
+  document.getElementById('copyMessageBtn').addEventListener('click', function(){
+    var text = document.getElementById('messageBox').textContent;
+    copyText(text).then(function(){
+      toast(t('toastCopied'));
+      if (messageState.currentIndex !== null && messageState.entry){
+        var recent = (messageState.entry.recentMessageIndexes || []).slice();
+        recent.push(messageState.currentIndex);
+        messageState.entry.recentMessageIndexes = recent.slice(-TEMPLATE_HISTORY_SIZE);
+        saveEntries();
+      }
+    }).catch(function(){ toast(t('toastCopyFailed')); });
+  });
+  function copyText(text){
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    return new Promise(function(resolve, reject){
+      try{
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        ok ? resolve() : reject();
+      }catch(e){ reject(e); }
+    });
+  }
+
+  /* ---------- Optional AI personalization (direct browser -> provider call) ---------- */
+  function generateAiMessage(entry, occ){
+    var ageNote = (entry.year && occ) ? ageNoteForPrompt(entry, occ.getFullYear() - entry.year) : '';
+    var prompt = (lang==='ko'
+      ? (entry.eventType==='birthday' ? entry.name + '님의 생일을 축하하는' : entry.name + '님과의 기념일을 축하하는') + ' 짧고 따뜻한 한국어 축하 메시지를 한 문장으로 하나만 만들어줘. 관계는 ' + relationshipDisplay(entry.relationship) + '이야.' + ageNote + ' 이모지는 최대 1개까지만. 메시지 문장만 출력해.'
+      : 'Write one short, warm one-sentence ' + (entry.eventType==='birthday'?'birthday':'anniversary') + ' message for ' + entry.name + ' (relationship: ' + relationshipDisplay(entry.relationship) + ').' + ageNote + ' At most one emoji. Output only the message.');
+    if (settings.aiProvider === 'openai') return callOpenAI(prompt);
+    if (settings.aiProvider === 'gemini') return callGemini(prompt);
+    if (settings.aiProvider === 'grok') return callGrok(prompt);
+    return callAnthropic(prompt);
+  }
+  function callAnthropic(prompt){
+    var model = settings.aiModel || 'claude-haiku-4-5-20251001';
+    return fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'content-type':'application/json',
+        'x-api-key': settings.aiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({ model: model, max_tokens: 100, messages:[{role:'user', content: prompt}] })
+    }).then(function(res){
+      if (!res.ok) throw new Error('anthropic http ' + res.status);
+      return res.json();
+    }).then(function(data){
+      var text = data && data.content && data.content[0] && data.content[0].text;
+      if (!text) throw new Error('empty response');
+      return text.trim();
+    });
+  }
+  function callOpenAiCompatible(baseUrl, defaultModel, prompt){
+    var model = settings.aiModel || defaultModel;
+    return fetch(baseUrl, {
+      method:'POST',
+      headers:{ 'content-type':'application/json', 'authorization':'Bearer ' + settings.aiKey },
+      body: JSON.stringify({ model: model, max_tokens: 100, messages:[{role:'user', content: prompt}] })
+    }).then(function(res){
+      if (!res.ok) throw new Error('http ' + res.status);
+      return res.json();
+    }).then(function(data){
+      var text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+      if (!text) throw new Error('empty response');
+      return text.trim();
+    });
+  }
+  function callOpenAI(prompt){ return callOpenAiCompatible('https://api.openai.com/v1/chat/completions', 'gpt-4o-mini', prompt); }
+  function callGrok(prompt){ return callOpenAiCompatible('https://api.x.ai/v1/chat/completions', 'grok-3-mini', prompt); }
+  function callGemini(prompt){
+    var model = settings.aiModel || 'gemini-2.0-flash';
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(settings.aiKey);
+    return fetch(url, {
+      method:'POST',
+      headers:{ 'content-type':'application/json' },
+      body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] })
+    }).then(function(res){
+      if (!res.ok) throw new Error('gemini http ' + res.status);
+      return res.json();
+    }).then(function(data){
+      var text = data && data.candidates && data.candidates[0] && data.candidates[0].content &&
+                 data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
+      if (!text) throw new Error('empty response');
+      return text.trim();
+    });
+  }
+
+  /* ---------- Settings wiring ---------- */
+  document.getElementById('leadDaysInput').value = settings.leadDays;
+  document.getElementById('aiEnableCheckbox').checked = settings.aiEnabled;
+  document.getElementById('aiProviderSelect').value = settings.aiProvider;
+  document.getElementById('aiKeyInput').value = settings.aiKey;
+  document.getElementById('aiModelInput').value = settings.aiModel;
+  document.getElementById('aiFields').classList.toggle('is-open', settings.aiEnabled);
+
+  document.getElementById('leadDaysInput').addEventListener('change', function(ev){
+    settings.leadDays = Math.max(0, +ev.target.value || 0); saveSettings(); renderEntryList();
+  });
+  document.getElementById('aiEnableCheckbox').addEventListener('change', function(ev){
+    settings.aiEnabled = ev.target.checked; saveSettings();
+    document.getElementById('aiFields').classList.toggle('is-open', settings.aiEnabled);
+  });
+  document.getElementById('aiProviderSelect').addEventListener('change', function(ev){ settings.aiProvider = ev.target.value; saveSettings(); });
+  document.getElementById('aiKeyInput').addEventListener('change', function(ev){ settings.aiKey = ev.target.value.trim(); saveSettings(); });
+  document.getElementById('aiModelInput').addEventListener('change', function(ev){ settings.aiModel = ev.target.value.trim(); saveSettings(); });
+
+  /* ---------- Data backup (export / import JSON) ---------- */
+  document.getElementById('exportDataBtn').addEventListener('click', function(){
+    var payload = {
+      app: 'cozy-shelter-reminder-studio',
+      exportedAt: new Date().toISOString(),
+      version: APP_VERSION,
+      entries: entries,
+      settings: { leadDays: settings.leadDays, aiEnabled: settings.aiEnabled, aiProvider: settings.aiProvider, aiModel: settings.aiModel }
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = 'reminder-studio-backup-' + stamp + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast(t('toastExported'));
+  });
+
+  document.getElementById('importDataBtn').addEventListener('click', function(){ document.getElementById('importDataInput').click(); });
+  document.getElementById('importDataInput').addEventListener('change', function(ev){
+    var file = ev.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var parsed = JSON.parse(String(reader.result));
+        if (!parsed || !Array.isArray(parsed.entries)) throw new Error('invalid');
+        if (entries.length && !window.confirm(t('importDataConfirm'))) return;
+        entries = parsed.entries;
+        if (parsed.settings && typeof parsed.settings === 'object'){
+          settings = Object.assign({}, settings, parsed.settings, { aiKey: settings.aiKey });
+          document.getElementById('leadDaysInput').value = settings.leadDays;
+          document.getElementById('aiEnableCheckbox').checked = settings.aiEnabled;
+          document.getElementById('aiProviderSelect').value = settings.aiProvider;
+          document.getElementById('aiModelInput').value = settings.aiModel;
+          document.getElementById('aiFields').classList.toggle('is-open', settings.aiEnabled);
+          saveSettings();
+        }
+        saveEntries();
+        renderEntryList();
+        toast(t('toastDataImported').replace('{n}', entries.length));
+      }catch(e){ toast(t('toastImportInvalid')); }
+    };
+    reader.onerror = function(){ toast(t('toastImportInvalid')); };
+    reader.readAsText(file, 'UTF-8');
+    ev.target.value = '';
+  });
+
+  /* ---------- CSV import flow ---------- */
+  var csvHeaders = [], csvRows = [], candidateRows = [];
+  var COLUMN_ROLES = ['unused','name','birthday','anniversary','relationship','notes'];
+  var ROLE_GUESS = {
+    name:['name','이름'], birthday:['birthday','생일'], anniversary:['anniversary','기념일'],
+    relationship:['relationship','label','관계'], notes:['note','메모']
+  };
+  function guessRole(header){
+    var low = header.toLowerCase();
+    for (var role in ROLE_GUESS){
+      if (ROLE_GUESS[role].some(function(k){ return low.indexOf(k) >= 0; })) return role;
+    }
+    return 'unused';
+  }
+
+  document.getElementById('chooseCsvBtn').addEventListener('click', function(){ document.getElementById('csvInput').click(); });
+  document.getElementById('csvInput').addEventListener('change', function(ev){
+    var file = ev.target.files[0];
+    if (!file) return;
+    document.getElementById('csvFileName').textContent = file.name;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var rows = parseCSV(String(reader.result));
+        if (!rows.length) throw new Error('empty');
+        csvHeaders = rows[0];
+        csvRows = rows.slice(1);
+        renderMappingTable();
+        document.getElementById('mappingSection').hidden = false;
+        document.getElementById('candidatesSection').hidden = true;
+      }catch(e){ toast(t('toastCsvError')); }
+    };
+    reader.onerror = function(){ toast(t('toastCsvError')); };
+    reader.readAsText(file, 'UTF-8');
+  });
+
+  function renderMappingTable(){
+    var table = document.getElementById('mappingTable');
+    var previewRows = csvRows.slice(0, 5);
+    var html = '<thead><tr>' + csvHeaders.map(function(h){ return '<th>' + escapeHtml(h) + '</th>'; }).join('') + '</tr>';
+    html += '<tr>' + csvHeaders.map(function(h, i){
+      var guessed = guessRole(h);
+      var opts = COLUMN_ROLES.map(function(role){
+        var label = role==='unused'?t('colUnused'):role==='name'?t('colName'):role==='birthday'?t('colBirthday'):role==='anniversary'?t('colAnniversary'):role==='relationship'?t('colRelationship'):t('colNotes');
+        return '<option value="' + role + '"' + (role===guessed?' selected':'') + '>' + label + '</option>';
+      }).join('');
+      return '<td><select class="col-role" data-col="' + i + '">' + opts + '</select></td>';
+    }).join('') + '</tr></thead>';
+    html += '<tbody>' + previewRows.map(function(r){
+      return '<tr>' + csvHeaders.map(function(_, i){ return '<td>' + escapeHtml(r[i] || '') + '</td>'; }).join('') + '</tr>';
+    }).join('') + '</tbody>';
+    table.innerHTML = html;
+  }
+
+  document.getElementById('buildCandidatesBtn').addEventListener('click', function(){
+    var roleByCol = {};
+    document.querySelectorAll('.col-role').forEach(function(sel){ roleByCol[+sel.dataset.col] = sel.value; });
+    var nameCol = Object.keys(roleByCol).find(function(c){ return roleByCol[c] === 'name'; });
+    var birthdayCol = Object.keys(roleByCol).find(function(c){ return roleByCol[c] === 'birthday'; });
+    var anniversaryCol = Object.keys(roleByCol).find(function(c){ return roleByCol[c] === 'anniversary'; });
+    var relationshipCol = Object.keys(roleByCol).find(function(c){ return roleByCol[c] === 'relationship'; });
+    var notesCol = Object.keys(roleByCol).find(function(c){ return roleByCol[c] === 'notes'; });
+
+    candidateRows = [];
+    csvRows.forEach(function(r){
+      var name = nameCol != null ? (r[nameCol] || '').trim() : '';
+      var relRaw = relationshipCol != null ? r[relationshipCol] : '';
+      var relationship = guessRelationship(relRaw);
+      if (!name) return;
+      if (birthdayCol != null && r[birthdayCol]){
+        var d = parseFlexibleDate(r[birthdayCol]);
+        if (d && isValidMonthDay(d.month, d.day)) candidateRows.push({ name:name, eventType:'birthday', month:d.month, day:d.day, year:d.year, relationship:relationship, source:t('srcColumn'), checked:true });
+      }
+      if (anniversaryCol != null && r[anniversaryCol]){
+        var d2 = parseFlexibleDate(r[anniversaryCol]);
+        if (d2 && isValidMonthDay(d2.month, d2.day)) candidateRows.push({ name:name, eventType:'anniversary', month:d2.month, day:d2.day, year:d2.year, relationship:relationship, source:t('srcColumn'), checked:true });
+      }
+      if (notesCol != null && r[notesCol]){
+        scanNotesForDates(r[notesCol]).forEach(function(found){
+          candidateRows.push({ name:name, eventType:found.type, month:found.month, day:found.day, year:found.year, relationship:relationship, source:t('srcNotes'), checked:true });
+        });
+      }
+    });
+    candidateRows.forEach(function(c){
+      var match = entries.find(function(x){
+        return x.name.trim().toLowerCase() === c.name.trim().toLowerCase() &&
+               x.eventType === c.eventType && x.month === c.month && x.day === c.day;
+      });
+      c.duplicate = !!match;
+      if (match){
+        c.existingId = match.id;
+        c.canMerge = !match.year && !!c.year;
+        c.checked = false;
+        c.duplicateAction = 'skip';
+      }
+    });
+    renderCandidatesTable();
+    document.getElementById('candidatesSection').hidden = candidateRows.length === 0;
+  });
+
+  function renderCandidatesTable(){
+    var table = document.getElementById('candidatesTable');
+    var html = '<thead><tr><th></th><th>' + t('candName') + '</th><th>' + t('candType') + '</th><th>' + t('candDate') + '</th><th>' + t('candRelationship') + '</th><th>' + t('candSource') + '</th></tr></thead><tbody>';
+    candidateRows.forEach(function(c, i){
+      var firstCell = c.duplicate
+        ? '<select class="cand-action" data-i="' + i + '">' +
+            '<option value="skip">' + t('dupSkip') + '</option>' +
+            (c.canMerge ? '<option value="merge">' + t('dupMerge') + '</option>' : '') +
+            '<option value="addAnyway">' + t('dupAddAnyway') + '</option>' +
+          '</select>'
+        : '<input type="checkbox" class="cand-check" data-i="' + i + '"' + (c.checked?' checked':'') + '>';
+      var sourceCell = escapeHtml(c.source) + (c.duplicate ? ' · <span class="tag">' + t('dupBadge') + '</span>' : '');
+      html += '<tr' + (c.duplicate ? ' class="cand-duplicate"' : '') + '>' +
+        '<td>' + firstCell + '</td>' +
+        '<td><input type="text" class="cand-name candidate-name" data-i="' + i + '" value="' + escapeHtml(c.name) + '"></td>' +
+        '<td><select class="cand-type" data-i="' + i + '">' +
+          '<option value="birthday"' + (c.eventType==='birthday'?' selected':'') + '>' + t('typeBirthday') + '</option>' +
+          '<option value="anniversary"' + (c.eventType==='anniversary'?' selected':'') + '>' + t('typeAnniversary') + '</option>' +
+        '</select></td>' +
+        '<td><input type="number" class="cand-month" data-i="' + i + '" min="1" max="12" value="' + c.month + '" style="width:52px"> / <input type="number" class="cand-day" data-i="' + i + '" min="1" max="31" value="' + c.day + '" style="width:52px"></td>' +
+        '<td><input type="text" class="cand-rel" data-i="' + i + '" list="relationshipList" autocomplete="off" value="' + escapeHtml(relationshipDisplay(c.relationship)) + '" style="width:88px"></td>' +
+        '<td>' + sourceCell + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody>';
+    table.innerHTML = html;
+    table.querySelectorAll('.cand-check').forEach(function(el){ el.addEventListener('change', function(){ candidateRows[+el.dataset.i].checked = el.checked; }); });
+    table.querySelectorAll('.cand-action').forEach(function(el){ el.addEventListener('change', function(){ candidateRows[+el.dataset.i].duplicateAction = el.value; }); });
+    table.querySelectorAll('.cand-name').forEach(function(el){ el.addEventListener('change', function(){ candidateRows[+el.dataset.i].name = el.value.trim(); }); });
+    table.querySelectorAll('.cand-type').forEach(function(el){ el.addEventListener('change', function(){ candidateRows[+el.dataset.i].eventType = el.value; }); });
+    table.querySelectorAll('.cand-month').forEach(function(el){ el.addEventListener('change', function(){ candidateRows[+el.dataset.i].month = +el.value; }); });
+    table.querySelectorAll('.cand-day').forEach(function(el){ el.addEventListener('change', function(){ candidateRows[+el.dataset.i].day = +el.value; }); });
+    table.querySelectorAll('.cand-rel').forEach(function(el){ el.addEventListener('change', function(){ candidateRows[+el.dataset.i].relationship = el.value; }); });
+  }
+
+  document.getElementById('importSelectedBtn').addEventListener('click', function(){
+    var toAdd = candidateRows.filter(function(c){
+      if (c.duplicate) return c.duplicateAction === 'addAnyway';
+      return c.checked;
+    }).filter(function(c){ return c.name && isValidMonthDay(c.month, c.day); });
+    var toMerge = candidateRows.filter(function(c){ return c.duplicate && c.duplicateAction === 'merge'; });
+
+    if (!toAdd.length && !toMerge.length){ toast(t('toastNoneSelected')); return; }
+
+    toAdd.forEach(function(c){
+      entries.push({
+        id: 'e' + Date.now() + Math.random().toString(36).slice(2,7),
+        name:c.name, relationship:c.relationship, eventType:c.eventType,
+        month:c.month, day:c.day, year:c.year || null, leadDays:null
+      });
+    });
+    toMerge.forEach(function(c){
+      var existing = entries.find(function(x){ return x.id === c.existingId; });
+      if (existing && !existing.year && c.year) existing.year = c.year;
+    });
+    var importOk = saveEntries(); renderEntryList();
+    document.getElementById('mappingSection').hidden = true;
+    document.getElementById('candidatesSection').hidden = true;
+    document.getElementById('csvInput').value = '';
+    document.getElementById('csvFileName').textContent = '';
+    if (importOk){
+      var msg = t('toastImported').replace('{n}', toAdd.length);
+      if (toMerge.length) msg += ' · ' + t('toastMerged').replace('{m}', toMerge.length);
+      toast(msg);
+    }
+  });
+
+  /* ---------- Toast ---------- */
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2200);
+  }
+
+  /* ---------- Modal open/close (About) ---------- */
+  function openModal(id){ document.getElementById(id).hidden = false; }
+  function closeModal(id){ document.getElementById(id).hidden = true; }
+  document.getElementById('openLicensesBtn').addEventListener('click', function(){ openModal('licenseModal'); });
+  document.getElementById('closeLicensesBtn').addEventListener('click', function(){ closeModal('licenseModal'); });
+  document.getElementById('openHelpBtn').addEventListener('click', function(){
+    document.getElementById('helpLayout').scrollTop = 0;
+    openModal('helpModal');
+  });
+  document.getElementById('closeHelpBtn').addEventListener('click', function(){ closeModal('helpModal'); });
+  document.addEventListener('keydown', function(ev){
+    if (ev.key !== 'Escape') return;
+    ['licenseModal','entryModal','messageModal','helpModal'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (!el.hidden) closeModal(id);
+    });
+  });
+  [['licenseModal'], ['entryModal'], ['messageModal'], ['helpModal']].forEach(function(pair){
+    document.getElementById(pair[0]).addEventListener('click', function(ev){
+      if (ev.target === ev.currentTarget) closeModal(pair[0]);
+    });
+  });
+
+  /* ---------- Accessibility mode ---------- */
+  function applyA11y(){
+    if (a11y === 'default') document.documentElement.removeAttribute('data-a11y');
+    else document.documentElement.setAttribute('data-a11y', a11y);
+    document.getElementById('accessibilityMode').value = a11y;
+  }
+  document.getElementById('accessibilityMode').addEventListener('change', function(ev){
+    a11y = ['default','safe','contrast'].indexOf(ev.target.value) >= 0 ? ev.target.value : 'default';
+    localStorage.setItem('cozyShelterReminderStudioA11y', a11y);
+    applyA11y();
+  });
+
+  /* ---------- Language ---------- */
+  function applyLang(){
+    document.documentElement.lang = lang;
+    document.getElementById('docTitle').textContent = 'Cozy Shelter ' + t('title');
+    document.getElementById('titleText').textContent = t('title');
+    document.getElementById('taglineText').textContent = t('tagline');
+    document.querySelectorAll('[data-i18n]').forEach(function(el){
+      var key = el.getAttribute('data-i18n');
+      if (I18N[lang] && I18N[lang][key] !== undefined) el.textContent = I18N[lang][key];
+    });
+    document.getElementById('licenseLunarDesc').innerHTML = t('licenseLunarDesc');
+    document.getElementById('helpLayout').innerHTML = t('helpHtml');
+    document.querySelectorAll('.dialog-close').forEach(function(el){
+      el.setAttribute('aria-label', t('closeLabel'));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){
+      var key = el.getAttribute('data-i18n-placeholder');
+      if (I18N[lang] && I18N[lang][key] !== undefined) el.placeholder = I18N[lang][key];
+    });
+    document.getElementById('langKoBtn').classList.toggle('active', lang==='ko');
+    document.getElementById('langEnBtn').classList.toggle('active', lang==='en');
+    renderEntryList();
+  }
+  document.getElementById('langKoBtn').addEventListener('click', function(){ lang='ko'; localStorage.setItem('cozyShelterReminderStudioLang','ko'); applyLang(); });
+  document.getElementById('langEnBtn').addEventListener('click', function(){ lang='en'; localStorage.setItem('cozyShelterReminderStudioLang','en'); applyLang(); });
+
+  /* ---------- Sticky shared header ---------- */
+  var stickyHeader = document.querySelector('body > header');
+  function syncStickyHeader(){
+    if (!stickyHeader) return;
+    var wide = window.innerWidth > 680;
+    var isOn = stickyHeader.classList.contains('is-scrolled');
+    var shouldBeOn = wide && (isOn ? window.scrollY > 4 : window.scrollY > 8);
+    stickyHeader.classList.toggle('is-scrolled', shouldBeOn);
+  }
+  window.addEventListener('scroll', syncStickyHeader, {passive:true});
+  window.addEventListener('resize', syncStickyHeader);
+  syncStickyHeader();
+
+  /* ---------- Init ---------- */
+  document.getElementById('footVersion').textContent = APP_VERSION;
+  document.getElementById('licenseVersion').textContent = APP_VERSION;
+  applyA11y();
+  applyLang();
+})();
+</script>
+</body>
+</html>
