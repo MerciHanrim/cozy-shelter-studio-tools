@@ -2,7 +2,7 @@
 
 A single-file, browser-only tool for batch converting, optimizing, and watermarking images. Nothing is uploaded anywhere — all processing happens locally in your browser tab, and your source files are never modified or deleted.
 
-**[Download `Cozy_Shelter_Image_Studio_v5.0.17.html`](Cozy_Shelter_Image_Studio_v5.0.17.html)** and open it in any modern browser (Chrome, Edge, Firefox). No install, no build step.
+**[Download `Cozy_Shelter_Image_Studio_v5.0.18.html`](Cozy_Shelter_Image_Studio_v5.0.18.html)** and open it in any modern browser (Chrome, Edge, Firefox). No install, no build step.
 
 ## Features
 
@@ -10,6 +10,7 @@ A single-file, browser-only tool for batch converting, optimizing, and watermark
 - **Input formats** — PNG, JPEG, WebP
 - **Output formats** — keep original, or convert to WebP / JPEG
 - **Quality control**, width-based resizing, and a per-file processing summary
+- **Target file size (KB)** for JPEG/WebP output — auto-adjusts quality only (resolution untouched) to land under a size budget
 - **PNG-specific modes**
   - Lossless (OxiPNG)
   - Web-optimized (libimagequant color quantization, processed in an isolated Worker)
