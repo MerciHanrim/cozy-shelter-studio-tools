@@ -2,7 +2,7 @@
 
 A single-file, browser-only tool for batch converting, optimizing, and watermarking images. Nothing is uploaded anywhere — all processing happens locally in your browser tab, and your source files are never modified or deleted.
 
-**[Download `Cozy_Shelter_Image_Studio_v5.0.18.html`](Cozy_Shelter_Image_Studio_v5.0.18.html)** and open it in any modern browser (Chrome, Edge, Firefox). No install, no build step.
+**[Download `Cozy_Shelter_Image_Studio_v5.0.19.html`](Cozy_Shelter_Image_Studio_v5.0.19.html)** and open it in any modern browser (Chrome, Edge, Firefox). No install, no build step.
 
 ## Features
 
@@ -20,9 +20,18 @@ A single-file, browser-only tool for batch converting, optimizing, and watermark
   - Text and image watermarks can be toggled independently and used together (e.g. bottom-left text credit + bottom-right signature image)
   - Shared controls: 9-point quick positioning, horizontal/vertical offset, size, opacity
 - **Per-file download** or **batch ZIP download**
+  - Each result's download action is a clearly labeled **"↓ Download"** button, visually separated from processing info
+  - Exported filenames automatically get an **`-optimized`** suffix before the extension (e.g. `photo.png` → `photo-optimized.png`), matching the naming used inside ZIP downloads
 - **Accessibility** — default / color-vision-adjusted / high-contrast display modes
 - **Open-source license notices** built into the app (see below)
 - **Korean / English** UI toggle
+
+## Updates
+
+### v5.0.19
+
+- **Clearer per-file download button** — replaced the icon-only control with a labeled **"↓ Download"** button, separated from the result's processing info
+- **Export filename marking** — downloaded files (individual and ZIP) automatically get an **`-optimized`** suffix before the extension, e.g. `photo.png` → `photo-optimized.png`
 
 ## Privacy
 
