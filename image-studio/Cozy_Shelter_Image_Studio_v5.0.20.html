@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ════════════════════════════════════════════════════════════
-  Cozy Shelter Image Studio v5.0.19 Beta
+  Cozy Shelter Image Studio v5.0.20 Beta
   Created by Hanrim (Cozy Shelter)
 
   A local, browser-only tool for batch image optimisation.
@@ -26,6 +26,8 @@
     • Settings persist across sessions; one-click reset to defaults
     • Text and image watermarks share a side-by-side live preview for
       quick checks; the larger Preview dialog supports precise drag placement
+    • Per-image watermark overrides inside a batch, while global settings remain
+      the default for files that do not need individual placement/style changes
     • User TTF / OTF fonts via FontFace API (no Local Font Access API)
     • Korean / English UI, color-vision support, and high-contrast mode
     • Sticky access to the beginner guide and explicit work-memory release
@@ -38,7 +40,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Cozy Shelter Image Studio v5.0.19 Beta</title>
+<title>Cozy Shelter Image Studio v5.0.20 Beta</title>
 <style>
   /*
    * SOURCE MAP — CSS
@@ -563,6 +565,13 @@
   .png-mode-option strong{font-size:13px}.png-mode-option small,.png-mode-note{font-size:12px;line-height:1.5}
   .advanced-panel{padding:18px;border-radius:11px;background:#fff;border-color:var(--panel-deep);box-shadow:var(--shadow-soft)}
   .wm-panel-description{margin:0 0 14px;color:var(--ink-soft);font-size:13px}
+  .wm-scope-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:10px 12px;border:1px solid #dfe3e8;border-radius:9px;background:#fafbfc}
+  .wm-scope-copy{display:flex;align-items:center;gap:8px;min-width:0;color:var(--ink-soft);font-size:12.5px}
+  .wm-scope-copy strong{color:var(--ink);font-size:13px;white-space:nowrap}
+  .wm-scope-target{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wm-scope-actions{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+  .wm-scope-bar.is-override{border-color:rgba(79,111,232,.34);background:#f6f8ff}
+  .batch-row .wm-override-badge{display:inline-flex;align-items:center;min-height:22px;padding:2px 7px;border:1px solid rgba(79,111,232,.25);border-radius:999px;background:rgba(79,111,232,.08);color:var(--accent-dark);font-size:10.5px;font-weight:750;white-space:nowrap}
   .wm-toggle-title{display:inline-flex;align-items:center;gap:8px}.wm-toggle-title .workflow-step-number{width:22px;height:22px;border-radius:6px}.control-help{display:block;margin:-5px 0 10px;color:var(--ink-soft);font-size:11.5px;line-height:1.45;font-weight:500}
   .watermark-tabs{margin-top:0;border-radius:9px;background:#eef0f4;border-color:transparent;padding:3px}.watermark-tab{min-height:36px;border-radius:7px;color:#616975;font-size:13px}.watermark-tab.active{color:var(--accent-dark);background:#fff}
   .watermark-tab{display:inline-flex;align-items:center;gap:7px}.watermark-tab-status{display:inline-flex;align-items:center;min-height:19px;padding:2px 6px;border-radius:999px;background:rgba(79,111,232,.11);color:var(--accent-dark);font-size:10.5px;font-weight:750;line-height:1}.watermark-tab-status[hidden]{display:none}.watermark-tab.is-enabled{color:var(--ink)}
@@ -620,7 +629,7 @@
   html[data-a11y="contrast"] .watermark-tab.active,html[data-a11y="contrast"] .lang-btn.active{box-shadow:inset 0 -3px 0 #003f9e}
   @media(prefers-contrast:more){html:not([data-a11y]) :focus-visible{outline:4px solid #ffbf00}}
   @media(max-width:1050px){.settings-bar{grid-template-columns:repeat(3,minmax(0,1fr))}.watermark-tab-panel{grid-template-columns:1fr}.watermark-tab-panel>.wm-text-editor,.watermark-tab-panel>.wm-font-preview,.watermark-tab-panel>.wm-image-primary,.watermark-tab-panel>.wm-secondary-row,.watermark-tab-panel>.wm-live-preview{grid-column:1}.wm-secondary-row{grid-template-columns:1fr}.wm-control-card:first-child{min-width:0}.wm-position-control{justify-content:flex-start}.wm-live-preview-button{min-height:300px}.wm-live-preview-button canvas{max-height:320px}}
-  @media(max-width:720px){.app{padding:0 16px 20px}.app>header{min-height:76px;padding:14px 0;box-shadow:none}.brand-lockup h1{font-size:22px}.tool-subtitle{font-size:12.5px}.settings-heading{align-items:flex-start}.workflow-heading>div,.result-heading>div{align-items:flex-start;flex-direction:column;gap:1px}.settings-bar{grid-template-columns:1fr;padding:13px}.upload-zone{min-height:120px}.wm-live-preview-head{align-items:flex-start;flex-direction:column;gap:3px}.wm-live-preview-button{min-height:240px}.wm-live-preview-button canvas{max-height:260px}.overlay-preview-actions{align-items:flex-start;flex-direction:column}.overlay-preview-buttons{width:100%;flex-direction:column}.overlay-preview-actions .btn{width:100%}.help-dialog{width:100%;height:100%;max-height:none;border-radius:0}.help-layout{grid-template-columns:1fr}.help-nav{display:flex;gap:4px;padding:10px;border-right:0;border-bottom:1px solid var(--panel-deep);overflow-x:auto}.help-nav strong{display:none}.help-nav a{white-space:nowrap}.help-content{padding:20px 18px 36px}}
+  @media(max-width:720px){.app{padding:0 16px 20px}.app>header{min-height:76px;padding:14px 0;box-shadow:none}.brand-lockup h1{font-size:22px}.tool-subtitle{font-size:12.5px}.settings-heading{align-items:flex-start}.workflow-heading>div,.result-heading>div{align-items:flex-start;flex-direction:column;gap:1px}.settings-bar{grid-template-columns:1fr;padding:13px}.upload-zone{min-height:120px}.wm-live-preview-head{align-items:flex-start;flex-direction:column;gap:3px}.wm-live-preview-button{min-height:240px}.wm-live-preview-button canvas{max-height:260px}.overlay-preview-actions{align-items:flex-start;flex-direction:column}.overlay-preview-buttons{width:100%;flex-direction:column}.overlay-preview-actions .btn{width:100%}.help-dialog{width:100%;height:100%;max-height:none;border-radius:0}.help-layout{grid-template-columns:1fr}.help-nav{display:flex;gap:4px;padding:10px;border-right:0;border-bottom:1px solid var(--panel-deep);overflow-x:auto}.help-nav strong{display:none}.help-nav a{white-space:nowrap}.help-content{padding:20px 18px 36px}.wm-scope-bar{align-items:stretch;flex-direction:column}.wm-scope-actions{width:100%;flex-wrap:wrap}.wm-scope-actions .btn-sm{flex:1 1 auto}}
 
   @media(max-width:720px){
     #helpModal.modal-backdrop{padding:0}
@@ -802,6 +811,17 @@
       </button>
       <div class="advanced-panel" id="wmPanel" hidden>
         <p class="wm-panel-description" data-i18n="watermarkDesc">텍스트 또는 투명 이미지 워터마크를 변환 결과물에 적용합니다. 원본 파일은 변경되지 않습니다.</p>
+        <div class="wm-scope-bar" id="wmScopeBar" hidden>
+          <div class="wm-scope-copy">
+            <strong data-i18n="wmScopeLabel">설정 범위</strong>
+            <span class="wm-scope-target" id="wmScopeTarget"></span>
+          </div>
+          <div class="wm-scope-actions">
+            <button class="btn-sm" id="wmEditSelectedBtn" type="button" data-i18n="wmEditSelected">선택 이미지 개별 설정</button>
+            <button class="btn-sm" id="wmBackToGlobalBtn" type="button" data-i18n="wmBackToGlobal" hidden>공통 설정으로 돌아가기</button>
+            <button class="btn-sm" id="wmRemoveOverrideBtn" type="button" data-i18n="wmRemoveOverride" hidden>개별 설정 해제</button>
+          </div>
+        </div>
         <div class="watermark-tabs" role="tablist" aria-label="Watermark type">
           <button class="watermark-tab active" id="watermarkTextTab" type="button" role="tab" aria-selected="true" aria-controls="watermarkTextPanel"><span data-i18n="textOverlayTitle">텍스트 워터마크</span><span class="watermark-tab-status" id="watermarkTextStatus" hidden></span></button>
           <button class="watermark-tab" id="watermarkImageTab" type="button" role="tab" aria-selected="false" aria-controls="watermarkImagePanel"><span data-i18n="imageOverlayTitle">이미지 워터마크</span><span class="watermark-tab-status" id="watermarkImageStatus" hidden></span></button>
@@ -1027,7 +1047,7 @@
           <p class="help-lead">이미지를 브라우저 안에서 변환하고 크기를 조절하며 워터마크를 넣는 도구입니다. 원본 파일은 변경되지 않고 외부 서버로 전송되지 않습니다.</p>
           <section id="is-help-start"><h3>3분 빠른 시작</h3><ol class="help-steps"><li><b>이미지 또는 폴더를 추가하세요.</b><br>점선 영역을 클릭하거나 파일·폴더를 끌어놓습니다. 기본값인 스마트 최적화는 같은 형식으로 최적화한 뒤 더 작은 결과만 사용합니다.</li><li><b>필요한 경우 출력 형식과 크기를 정하세요.</b><br>웹 게시용이라면 WebP, 품질 85, 긴 변 1920px를 권장합니다.</li><li><b>필요하면 워터마크를 설정하세요.</b><br>오른쪽 결과 미리보기에서 설정 변화를 빠르게 확인합니다. 원하는 위치에 세밀하게 놓으려면 미리보기를 클릭해 큰 창을 열고 워터마크를 직접 끕니다.</li><li><b>변환한 뒤 결과를 저장하세요.</b><br>설정을 바꿨다면 ‘새 설정으로 다시 변환’을 먼저 누릅니다.</li></ol><p class="help-note"><b>안심하세요.</b> 스마트 최적화 결과가 원본보다 크거나 같으면 원본 파일을 유지합니다. 원본 이미지는 삭제되거나 덮어쓰이지 않습니다.</p></section>
           <section id="is-help-output"><h3>출력 설정 이해하기</h3><h4>출력 형식</h4><ul><li><b>스마트 최적화:</b> 원본과 같은 형식으로 최적화를 시도하고, 결과가 더 작을 때만 변환본을 사용합니다. 커지거나 같으면 파일별로 원본을 유지합니다.</li><li><b>원본 포맷 유지 · 재인코딩:</b> JPG는 JPG처럼 형식은 유지하되 선택한 품질과 크기로 새로 저장합니다. 이미 최적화된 원본보다 커질 수도 있습니다.</li><li><b>WebP:</b> 웹 게시용으로 용량을 줄이기 좋습니다.</li><li><b>JPEG:</b> 사진에 적합하지만 투명 배경은 흰색으로 바뀝니다.</li><li><b>PNG:</b> 투명 배경과 선명한 그래픽에 적합합니다.</li></ul><h4>품질과 크기</h4><p>품질 수치가 높을수록 선명하지만 파일도 커집니다. 사진은 80~90부터 시작하세요. 리사이즈나 워터마크를 사용하면 원본을 그대로 채택할 수 없으므로 원본 포맷 재인코딩 모드로 자동 전환됩니다.</p><h4>목표 용량(KB) 이하</h4><p>출력 형식이 JPEG 또는 WebP일 때만 나타납니다. 매체 규격처럼 정해진 용량(예: 100KB)에 맞춰야 하지만 해상도는 그대로 둬야 할 때 사용하세요. 값을 입력하면 해상도는 건드리지 않고 품질만 자동으로 낮춰(이진 탐색) 목표 용량 이하가 되는 가장 높은 품질을 찾습니다. 최저 품질에서도 목표를 넘으면 경고와 함께 그 시점에서 가장 작은 결과를 보여주며, 이때는 리사이즈를 함께 사용해야 합니다.</p><p class="help-note"><b>추천:</b> 여러 원본을 안전하게 일괄 최적화하려면 ‘스마트 최적화’, 블로그 사진을 적극적으로 줄이려면 WebP · 품질 85 · 긴 변 1920px가 무난합니다.</p></section>
-          <section id="is-help-watermark"><h3>워터마크 넣기</h3><ol><li>‘텍스트 워터마크’ 또는 ‘이미지 워터마크’ 탭을 선택합니다.</li><li>‘사용’을 켜고 문구나 투명 PNG 서명 이미지를 지정합니다.</li><li>빠른 위치 9칸에서 기준 위치를 고릅니다.</li><li><b>인라인 결과 미리보기</b>에서 크기·불투명도·가로/세로 오프셋의 변화를 즉시 확인합니다.</li><li><b>큰 미리보기</b>가 필요하면 결과 미리보기를 클릭합니다. 큰 창에서는 워터마크를 직접 끌어 9칸 기준보다 세밀하게 원하는 위치에 놓을 수 있으며, 직접 끈 위치는 사용자 지정 위치로 유지됩니다.</li><li>확인이 끝나면 ‘워터마크 적용 및 변환’을 누릅니다.</li></ol><p class="help-note">인라인 미리보기는 빠른 설정 확인용이고, 큰 미리보기는 직접 끌어 놓는 정밀 배치용입니다. 텍스트와 이미지 워터마크는 동시에 사용할 수 있습니다. 설정을 움직이는 것만으로 기존 결과가 다시 인코딩되지는 않습니다.</p></section>
+          <section id="is-help-watermark"><h3>워터마크 넣기</h3><ol><li>‘텍스트 워터마크’ 또는 ‘이미지 워터마크’ 탭을 선택합니다.</li><li>‘사용’을 켜고 문구나 투명 PNG 서명 이미지를 지정합니다.</li><li>빠른 위치 9칸에서 기준 위치를 고릅니다.</li><li><b>인라인 결과 미리보기</b>에서 크기·불투명도·가로/세로 오프셋의 변화를 즉시 확인합니다.</li><li>배치 안에서 특정 이미지만 다르게 놓고 싶다면 결과 목록에서 그 이미지를 선택한 뒤 <b>‘선택 이미지 개별 설정’</b>을 누릅니다. 현재 공통 설정을 복사한 뒤 그 파일의 텍스트/이미지 워터마크 설정만 따로 조정할 수 있습니다.</li><li><b>큰 미리보기</b>가 필요하면 결과 미리보기를 클릭합니다. 큰 창에서는 워터마크를 직접 끌어 9칸 기준보다 세밀하게 원하는 위치에 놓을 수 있으며, 직접 끈 위치는 사용자 지정 위치로 유지됩니다.</li><li>확인이 끝나면 ‘워터마크 적용 및 변환’을 누릅니다.</li></ol><p class="help-note">개별 설정이 없는 이미지는 공통 워터마크 설정을 그대로 사용합니다. 개별 설정은 위치·크기·색상·불투명도·문구·사용 여부 등 텍스트/이미지 워터마크 설정을 파일별로 덮어씁니다. 워터마크 이미지 파일 자체와 저장 문구 목록은 현재 세션에서 공통으로 사용됩니다.</p></section>
           <section id="is-help-font"><h3>내 폰트 파일 추가하기</h3><p>‘폰트 추가’를 눌러 TTF 또는 OTF 파일을 선택하세요. 추가한 폰트는 현재 브라우저 실행에서 워터마크에 사용할 수 있습니다. 목록의 삭제 기능은 등록만 해제하며 PC의 원본 폰트 파일을 삭제하지 않습니다.</p></section>
           <section id="is-help-save"><h3>변환과 저장</h3><p>여러 이미지를 추가하면 각 결과를 개별 저장하거나 ZIP으로 묶어 받을 수 있습니다. 저장되는 결과 파일명에는 원본과 쉽게 구분할 수 있도록 <b>-optimized</b>가 자동으로 붙습니다. 설정 변경 경고가 보이면 아래 결과는 이전 설정으로 만들어진 것입니다. ‘새 설정으로 다시 변환’을 누른 뒤 저장하세요.</p><p class="help-note">PNG 웹 최적화는 용량을 크게 줄일 수 있지만 색상 수를 정리합니다. 픽셀을 그대로 보존해야 하면 ‘원본 보존/무손실’을 선택하세요.</p></section>
           <section id="is-help-access"><h3>접근성과 키보드</h3><ul><li>상단 보기 모드에서 기본·색각 보정·고대비를 선택할 수 있습니다.</li><li><b>Tab / Shift+Tab:</b> 다음·이전 조작 요소로 이동</li><li><b>Enter / Space:</b> 버튼 실행 또는 선택</li><li><b>Esc:</b> 미리보기·사용 가이드·About 창 닫기</li><li><b>Ctrl+S:</b> 편집칸 밖에서 현재 결과 저장</li></ul></section>
@@ -1038,7 +1058,7 @@
           <p class="help-lead">Convert, resize, and watermark images locally in your browser. Original files are never modified or uploaded.</p>
           <section><h3>3-minute quick start</h3><ol class="help-steps"><li><b>Add images or a folder.</b> Click the dashed area or drag files onto it. Smart optimisation, the default, tests the original format and keeps only a smaller result.</li><li><b>Choose output settings if needed.</b> For web publishing, try WebP, quality 85, and a 1920px longest edge.</li><li><b>Optional: add a watermark.</b> Use the result preview for quick checks. For precise placement, click it to open the large preview and drag the watermark directly.</li><li><b>Convert and save.</b> If settings changed, convert again before downloading.</li></ol></section>
           <section><h3>Output settings</h3><p><b>Smart optimisation</b> re-encodes each file in its original format, uses the converted result only when it is smaller, and otherwise keeps the original file. <b>Keep original format · re-encode</b> always creates a new JPEG/PNG/WebP file using the chosen quality and dimensions, so an already optimized source can become larger. Resize or watermark settings switch to re-encoding because the original can no longer be kept unchanged. For blog photos, try WebP · 85 · longest edge 1920px.</p><p><b>Target size (KB) or less</b> appears only when the output is JPEG or WebP. Use it when a spec (e.g. an ad platform) requires a fixed file size cap while the resolution must stay unchanged. Enter a value and it binary-searches quality only — never touching resolution — for the highest quality that still lands at or under that size. If even the lowest quality can't reach it, a warning shows the smallest result achieved and resizing is needed instead.</p></section>
-          <section><h3>Watermarks</h3><ol><li>Choose Text or Image watermark.</li><li>Enable it and enter text or choose a transparent PNG signature.</li><li>Pick one of nine quick positions.</li><li>Use the <b>inline result preview</b> to check size, opacity, and offset changes instantly.</li><li>Click the result preview to open the <b>large preview</b>. There you can drag the watermark beyond the nine anchors into a precise custom position; the dragged position is preserved.</li><li>Select Apply watermark & convert when finished.</li></ol><p class="help-note">The inline preview is for quick setting checks; the large preview is for precise direct placement. Text and image watermarks can be used together. Moving controls does not re-encode old results automatically.</p></section>
+          <section><h3>Watermarks</h3><ol><li>Choose Text or Image watermark.</li><li>Enable it and enter text or choose a transparent PNG signature.</li><li>Pick one of nine quick positions.</li><li>Use the <b>inline result preview</b> to check size, opacity, and offset changes instantly.</li><li>To customize only one image in a batch, select that result and choose <b>Edit selected image</b>. The current global settings are copied, then that file can keep its own text/image watermark settings.</li><li>Click the result preview to open the <b>large preview</b>. There you can drag the watermark beyond the nine anchors into a precise custom position; the dragged position is preserved.</li><li>Select Apply watermark & convert when finished.</li></ol><p class="help-note">Images without an override continue to use the global watermark settings. Per-image overrides can change text/image watermark position, size, color, opacity, text, and enabled state. The watermark image file itself and saved phrase list remain shared for the session.</p></section>
           <section><h3>Add a font</h3><p>Select Add font and choose a TTF or OTF file. Removing it from the list never deletes the original font file on your computer.</p></section>
           <section><h3>Convert and save</h3><p>Download results individually or as a ZIP. Exported filenames automatically include <b>-optimized</b> so they are easy to distinguish from the originals. A changed-settings warning means existing results use the previous settings; convert again first.</p></section>
           <section><h3>Accessibility and keyboard</h3><p>Use Default, Color correction, or High contrast. Tab moves focus, Enter/Space activates controls, Esc closes dialogs, and Ctrl+S downloads the current result when focus is not in an editor.</p></section>
@@ -1057,7 +1077,7 @@
       <button class="modal-close" id="closeLicensesBtn" type="button" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      <h3>Cozy Shelter Image Studio v5.0.19 <span class="beta-badge">BETA</span></h3>
+      <h3>Cozy Shelter Image Studio v5.0.20 <span class="beta-badge">BETA</span></h3>
       <p data-i18n="aboutDescription">이미지를 외부 서버로 전송하지 않고 브라우저 안에서 처리하는 로컬 이미지 최적화 도구입니다.</p>
       <div class="project-attribution">
         <span data-i18n="projectBy">제작 및 프로젝트</span>
@@ -1974,7 +1994,7 @@ Public License instead of this License.  But first, please read
    */
   const $ = id => document.getElementById(id);
   const qsa = sel => Array.from(document.querySelectorAll(sel));
-const APP_VERSION = 'v5.0.19';
+const APP_VERSION = 'v5.0.20';
 
   const STORAGE_KEYS = {
     lang: 'csi-studio-lang',
@@ -2058,6 +2078,7 @@ const APP_VERSION = 'v5.0.19';
       zipUnavailableNotice:'ZIP 라이브러리를 불러오지 못했습니다 (오프라인?) — 각 항목을 개별 다운로드해 주세요.',
       rowDownload:'다운로드',
       rowRemove:'제거',
+      wmScopeLabel:'설정 범위', wmScopeGlobal:'전체 이미지 공통 설정', wmScopeSelected:(name)=>`개별 설정 · ${name}`, wmEditSelected:'선택 이미지 개별 설정', wmBackToGlobal:'공통 설정으로 돌아가기', wmRemoveOverride:'개별 설정 해제', wmOverrideBadge:'개별 워터마크', wmNoSelectedImage:'먼저 결과 목록에서 이미지를 선택해 주세요.',
       resizeOriginalHint:'원본 크기 그대로 저장됩니다.',
       resizeOriginalHintWithSize:'원본 크기 그대로 저장됩니다 ({w}×{h}px).',
       largeImageSuggestionText:'큰 이미지가 감지됐어요 — 긴 변 1920px로 리사이즈하면 더 가벼워져요',
@@ -2169,6 +2190,7 @@ const APP_VERSION = 'v5.0.19';
       zipUnavailableNotice:'Could not load the ZIP library (offline?) — please download items individually.',
       rowDownload:'Download',
       rowRemove:'Remove',
+      wmScopeLabel:'Settings scope', wmScopeGlobal:'Global settings for all images', wmScopeSelected:(name)=>`Per-image · ${name}`, wmEditSelected:'Edit selected image', wmBackToGlobal:'Back to global settings', wmRemoveOverride:'Remove override', wmOverrideBadge:'Per-image watermark', wmNoSelectedImage:'Select an image from the result list first.',
       resizeOriginalHint:'Original dimensions will be kept.',
       resizeOriginalHintWithSize:'Original dimensions will be kept ({w}×{h}px).',
       largeImageSuggestionText:'Large image detected — resizing to a 1920px longest edge would make it much lighter',
@@ -2324,8 +2346,9 @@ const APP_VERSION = 'v5.0.19';
   // compression attempt — if the encoder produces a bigger file than the
   // source (common for already-optimized JPEGs), there's nothing gained by
   // keeping it, so we fall back to the original file, same as smart mode does.
-  function canFallBackToOriginal(file, requestedMime){
-    return $('resizeMode').value === 'original' && !wm.enabled && !imageOverlay.enabled && requestedMime === normalizedImageMime(file);
+  function canFallBackToOriginal(file, requestedMime, settings=null){
+    const effective = settings || { text: wm, image: imageOverlay };
+    return $('resizeMode').value === 'original' && !watermarkSettingsUseOverlay(effective) && requestedMime === normalizedImageMime(file);
   }
   function requireReencodeMode(){
     if(!isSmartMode()) return;
@@ -2689,6 +2712,9 @@ const APP_VERSION = 'v5.0.19';
   let imageOverlayFileName = '';
   let activeWatermarkTab = 'text';
   let watermarkPending = false;
+  let watermarkGlobalState = { text: wm, image: imageOverlay };
+  const batchWatermarkOverrides = new Map();
+  let editingWatermarkFile = null;
 
   function escapeFontFamilyName(name){
     return `"${String(name || '').replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
@@ -2696,8 +2722,8 @@ const APP_VERSION = 'v5.0.19';
   function fontFamilyForKey(key){
     return WM_FONTS[key] || wmCustomFonts.get(key) || '';
   }
-  function selectedFontFamily(){
-    return fontFamilyForKey(wm.font) || WM_FONTS.systemSans;
+  function selectedFontFamily(settings=wm){
+    return fontFamilyForKey(settings.font) || WM_FONTS.systemSans;
   }
   function updateWmFontPreview(){
     const previewText = $('wmFontPreviewText');
@@ -2708,9 +2734,35 @@ const APP_VERSION = 'v5.0.19';
     previewText.style.fontFamily = family;
     previewSample.style.fontFamily = family;
   }
+  function cloneTextWatermarkSettings(settings){
+    const copy = Object.assign({}, settings || wmDefaults);
+    copy.phrases = (watermarkGlobalState.text && Array.isArray(watermarkGlobalState.text.phrases))
+      ? watermarkGlobalState.text.phrases
+      : wmDefaults.phrases.slice();
+    return copy;
+  }
+  function cloneImageWatermarkSettings(settings){
+    return Object.assign({}, settings || imageOverlayDefaults);
+  }
+  function getGlobalWatermarkSettings(){
+    return { text: watermarkGlobalState.text, image: watermarkGlobalState.image };
+  }
+  function getEffectiveWatermarkSettings(file){
+    return batchWatermarkOverrides.get(file) || getGlobalWatermarkSettings();
+  }
+  function watermarkSettingsUseOverlay(settings){
+    return Boolean(settings && ((settings.text && settings.text.enabled) || (settings.image && settings.image.enabled)));
+  }
+  function storeActiveWatermarkOverride(){
+    if(!editingWatermarkFile) return;
+    batchWatermarkOverrides.set(editingWatermarkFile, { text: wm, image: imageOverlay });
+  }
   function wmChanged(){
-    saveWatermarkSettings();
+    if(editingWatermarkFile) storeActiveWatermarkOverride();
+    else saveWatermarkSettings();
     if(batchSourceFiles.length) setWatermarkPending(true);
+    updateWatermarkScopeUI();
+    renderBatchList();
   }
   function setWatermarkPending(pending){
     watermarkPending=!!pending;
@@ -2846,7 +2898,8 @@ const APP_VERSION = 'v5.0.19';
   }
 
   function saveWatermarkSettings(){
-    try{ localStorage.setItem(STORAGE_KEYS.watermark, JSON.stringify({text:wm,image:imageOverlay})); }catch(e){}
+    const globalSettings = getGlobalWatermarkSettings();
+    try{ localStorage.setItem(STORAGE_KEYS.watermark, JSON.stringify({text:globalSettings.text,image:globalSettings.image})); }catch(e){}
   }
   function loadWatermarkSettings(){
     try{
@@ -2858,8 +2911,10 @@ const APP_VERSION = 'v5.0.19';
         imageOverlay = Object.assign({}, imageOverlayDefaults, s && s.image ? s.image : {});
         imageOverlay.enabled = false; // overlay file is session-only and is not persisted
         if(!Array.isArray(wm.phrases) || !wm.phrases.length) wm.phrases = wmDefaults.phrases.slice();
+        watermarkGlobalState = { text: wm, image: imageOverlay };
       }
     }catch(e){}
+    if(!editingWatermarkFile) watermarkGlobalState = { text: wm, image: imageOverlay };
     syncWatermarkUI();
   }
   function syncWatermarkUI(){
@@ -2879,6 +2934,84 @@ const APP_VERSION = 'v5.0.19';
     updateWmBadge();
     updateWmFontPreview();
     syncImageOverlayUI();
+    updateWatermarkScopeUI();
+  }
+  function updateWatermarkScopeUI(){
+    const bar = $('wmScopeBar');
+    if(!bar) return;
+    const hasBatch = batchSourceFiles.length > 1;
+    bar.hidden = !hasBatch;
+    if(!hasBatch) return;
+    const target = $('wmScopeTarget');
+    const editBtn = $('wmEditSelectedBtn');
+    const backBtn = $('wmBackToGlobalBtn');
+    const removeBtn = $('wmRemoveOverrideBtn');
+    const selectedFile = selectedBatchIndex >= 0 ? batchSourceFiles[selectedBatchIndex] : null;
+    const inOverride = Boolean(editingWatermarkFile);
+    bar.classList.toggle('is-override', inOverride);
+    if(target){
+      target.textContent = inOverride
+        ? t('wmScopeSelected', editingWatermarkFile.name)
+        : t('wmScopeGlobal');
+    }
+    if(editBtn){
+      editBtn.hidden = inOverride;
+      editBtn.disabled = !selectedFile || batchProcessing;
+    }
+    if(backBtn) backBtn.hidden = !inOverride;
+    if(removeBtn){
+      removeBtn.hidden = !inOverride;
+      removeBtn.disabled = !editingWatermarkFile || !batchWatermarkOverrides.has(editingWatermarkFile);
+    }
+    const chooseBtn = $('imgOverlayChooseBtn');
+    const imageRemoveBtn = $('imgOverlayRemoveBtn');
+    // The watermark asset is shared. Per-image mode overrides placement/style,
+    // not the source watermark image file itself.
+    if(chooseBtn) chooseBtn.disabled = inOverride;
+    if(imageRemoveBtn) imageRemoveBtn.disabled = inOverride;
+  }
+  function beginSelectedWatermarkOverride(){
+    const file = selectedBatchIndex >= 0 ? batchSourceFiles[selectedBatchIndex] : null;
+    if(!file){ alert(t('wmNoSelectedImage')); return; }
+    if(editingWatermarkFile && editingWatermarkFile !== file) endWatermarkOverrideEdit();
+    if(!editingWatermarkFile){
+      const existing = batchWatermarkOverrides.get(file);
+      const globalSettings = getGlobalWatermarkSettings();
+      const override = existing || {
+        text: cloneTextWatermarkSettings(globalSettings.text),
+        image: cloneImageWatermarkSettings(globalSettings.image)
+      };
+      override.text.phrases = watermarkGlobalState.text.phrases;
+      batchWatermarkOverrides.set(file, override);
+      editingWatermarkFile = file;
+      wm = override.text;
+      imageOverlay = override.image;
+      syncWatermarkUI();
+      setWmOpen(true, false);
+      renderOverlayPreview();
+      renderBatchList();
+    }
+  }
+  function endWatermarkOverrideEdit(){
+    if(editingWatermarkFile) storeActiveWatermarkOverride();
+    editingWatermarkFile = null;
+    wm = watermarkGlobalState.text;
+    imageOverlay = watermarkGlobalState.image;
+    syncWatermarkUI();
+    renderOverlayPreview();
+    renderBatchList();
+  }
+  function removeActiveWatermarkOverride(){
+    if(!editingWatermarkFile) return;
+    const file = editingWatermarkFile;
+    batchWatermarkOverrides.delete(file);
+    editingWatermarkFile = null;
+    wm = watermarkGlobalState.text;
+    imageOverlay = watermarkGlobalState.image;
+    syncWatermarkUI();
+    if(batchSourceFiles.length) setWatermarkPending(true);
+    renderOverlayPreview();
+    renderBatchList();
   }
   function setWmOpen(open, persist=true){
     $('wmToggleBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -2935,7 +3068,7 @@ const APP_VERSION = 'v5.0.19';
     }
   }
   async function loadImageOverlayFile(file){
-    if(!file) return;
+    if(!file || editingWatermarkFile) return;
     if(!['image/png','image/webp','image/jpeg'].includes(file.type)){ alert(t('unsupportedFormat')); return; }
     try{
       if(imageOverlayBitmap && typeof imageOverlayBitmap.close==='function') imageOverlayBitmap.close();
@@ -2951,6 +3084,7 @@ const APP_VERSION = 'v5.0.19';
     finally{ $('imgOverlayFileInput').value=''; }
   }
   function removeImageOverlay(){
+    if(editingWatermarkFile) return;
     if(imageOverlayBitmap && typeof imageOverlayBitmap.close==='function') imageOverlayBitmap.close();
     imageOverlayBitmap=null; imageOverlayFileName=''; imageOverlay.enabled=false;
     imageOverlayCrop=null;
@@ -3028,65 +3162,66 @@ const APP_VERSION = 'v5.0.19';
     }
     return fallback;
   }
-  function drawTextOverlay(ctx, w, h, options={}){
-    if(!wm.enabled) return;
-    const text = String(wm.text || '').trim() || WATERMARK_DEFAULT_TEXT;
+  function drawTextOverlay(ctx, w, h, options={}, settings=wm){
+    if(!settings.enabled) return;
+    const text = String(settings.text || '').trim() || WATERMARK_DEFAULT_TEXT;
     // Small previews must preserve the selected percentage instead of
     // flattening several slider values to the production 10 px minimum.
-    const proportionalFontSize = Math.min(w, h) * (wm.size / 1000);
+    const proportionalFontSize = Math.min(w, h) * (settings.size / 1000);
     const fs = options.preview
       ? Math.max(1, proportionalFontSize)
       : Math.max(10, Math.round(proportionalFontSize));
     const pad = Math.round(fs * 0.8);
-    const baseAnchor = overlayAnchor(wm.pos,w,h,pad,pad);
-    const anchor = customAnchor(wm,w,h,baseAnchor);
-    const custom = Number.isFinite(wm.cx) && Number.isFinite(wm.cy);
-    const x = anchor.x + (custom ? 0 : w * inwardOffset(wm.pos,'x',wm.ox));
-    const y = anchor.y + (custom ? 0 : h * inwardOffset(wm.pos,'y',wm.oy));
+    const baseAnchor = overlayAnchor(settings.pos,w,h,pad,pad);
+    const anchor = customAnchor(settings,w,h,baseAnchor);
+    const custom = Number.isFinite(settings.cx) && Number.isFinite(settings.cy);
+    const x = anchor.x + (custom ? 0 : w * inwardOffset(settings.pos,'x',settings.ox));
+    const y = anchor.y + (custom ? 0 : h * inwardOffset(settings.pos,'y',settings.oy));
     ctx.save();
-    ctx.globalAlpha = Math.min(1, Math.max(0.05, wm.opacity / 100));
-    ctx.font = `600 ${fs}px ${selectedFontFamily()}`;
+    ctx.globalAlpha = Math.min(1, Math.max(0.05, settings.opacity / 100));
+    ctx.font = `600 ${fs}px ${selectedFontFamily(settings)}`;
     // As with image watermarks, a directly dragged text watermark keeps a
     // centre anchor while the 3 x 3 position indicator follows its location.
     // This prevents an abrupt shift when crossing a grid boundary.
     ctx.textAlign = custom ? 'center' : anchor.px==='l'?'left':anchor.px==='r'?'right':'center';
     ctx.textBaseline = custom ? 'middle' : anchor.py==='t'?'top':anchor.py==='b'?'bottom':'middle';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = hexLuminance(wm.color) > 0.5 ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.6)';
+    ctx.strokeStyle = hexLuminance(settings.color) > 0.5 ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.6)';
     ctx.lineWidth = Math.max(options.preview ? 0.35 : 1, fs / 9);
     ctx.strokeText(text, x, y);
-    ctx.fillStyle = wm.color;
+    ctx.fillStyle = settings.color;
     ctx.fillText(text, x, y);
     ctx.restore();
   }
-  function drawImageOverlay(ctx,w,h){
-    if(!imageOverlay.enabled || !imageOverlayBitmap) return;
+  function drawImageOverlay(ctx,w,h,settings=imageOverlay){
+    if(!settings.enabled || !imageOverlayBitmap) return;
     const crop=imageOverlayCrop || {x:0,y:0,w:imageOverlayBitmap.width,h:imageOverlayBitmap.height};
     const iw=crop.w, ih=crop.h;
     if(!iw || !ih) return;
-    const targetW=Math.max(1,w*(imageOverlay.size/100));
+    const targetW=Math.max(1,w*(settings.size/100));
     const targetH=targetW*(ih/iw);
     const pad=Math.max(4,Math.round(Math.min(w,h)*0.006));
-    const baseAnchor=overlayAnchor(imageOverlay.pos,w,h,pad,pad);
-    const custom=Number.isFinite(imageOverlay.cx) && Number.isFinite(imageOverlay.cy);
-    const anchor=customAnchor(imageOverlay,w,h,baseAnchor);
+    const baseAnchor=overlayAnchor(settings.pos,w,h,pad,pad);
+    const custom=Number.isFinite(settings.cx) && Number.isFinite(settings.cy);
+    const anchor=customAnchor(settings,w,h,baseAnchor);
     // A dragged image uses its visual centre as the invariant anchor. The
     // nearby-position indicator may change while crossing the 3 x 3 grid,
     // but that must never change the image's alignment or make it jump.
     let x=custom ? anchor.x-targetW/2 : anchor.px==='l'?anchor.x:anchor.px==='r'?anchor.x-targetW:anchor.x-targetW/2;
     let y=custom ? anchor.y-targetH/2 : anchor.py==='t'?anchor.y:anchor.py==='b'?anchor.y-targetH:anchor.y-targetH/2;
     if(!custom){
-      x += w*inwardOffset(imageOverlay.pos,'x',imageOverlay.ox);
-      y += h*inwardOffset(imageOverlay.pos,'y',imageOverlay.oy);
+      x += w*inwardOffset(settings.pos,'x',settings.ox);
+      y += h*inwardOffset(settings.pos,'y',settings.oy);
     }
     ctx.save();
-    ctx.globalAlpha=Math.min(1,Math.max(.05,imageOverlay.opacity/100));
+    ctx.globalAlpha=Math.min(1,Math.max(.05,settings.opacity/100));
     ctx.drawImage(imageOverlayBitmap,crop.x,crop.y,crop.w,crop.h,x,y,targetW,targetH);
     ctx.restore();
   }
-  function drawOverlays(ctx,w,h,options={}){
-    drawImageOverlay(ctx,w,h);
-    drawTextOverlay(ctx,w,h,options);
+  function drawOverlays(ctx,w,h,options={},settings=null){
+    const effective = settings || { text: wm, image: imageOverlay };
+    drawImageOverlay(ctx,w,h,effective.image);
+    drawTextOverlay(ctx,w,h,options,effective.text);
   }
   // ── 5. Image conversion, file intake, and batch processing ───────────────
   function calcOutputSize(bitmap){
@@ -3392,7 +3527,8 @@ const APP_VERSION = 'v5.0.19';
     $('batchStaleWarning').style.display = 'block';
   }
   async function processBatchFiles(files, skipped = 0){
-    if(isSmartMode() && ($('resizeMode').value !== 'original' || wm.enabled || imageOverlay.enabled)){
+    const batchUsesAnyOverlay = files.some(file => watermarkSettingsUseOverlay(getEffectiveWatermarkSettings(file)));
+    if(isSmartMode() && ($('resizeMode').value !== 'original' || batchUsesAnyOverlay)){
       requireReencodeMode();
     }
     const smartMode = isSmartMode();
@@ -3409,6 +3545,7 @@ const APP_VERSION = 'v5.0.19';
     $('batchList').innerHTML = '';
     $('batchSummary').textContent = '';
     updateZipAvailabilityUI();
+    updateWatermarkScopeUI();
 
     const quality = parseInt($('qualityRange').value,10)/100;
 
@@ -3439,7 +3576,8 @@ const APP_VERSION = 'v5.0.19';
           ctx.fillRect(0,0,canvas.width,canvas.height);
         }
         ctx.drawImage(bitmap,0,0,size.w,size.h);
-        drawOverlays(ctx, size.w, size.h);
+        const watermarkSettingsForFile = getEffectiveWatermarkSettings(file);
+        drawOverlays(ctx, size.w, size.h, {}, watermarkSettingsForFile);
         if(bitmap && typeof bitmap.close === 'function') bitmap.close();
 
         const encodeResult = await encodeWithOptionalTargetSize(canvas, mime, quality, file);
@@ -3470,7 +3608,7 @@ const APP_VERSION = 'v5.0.19';
         if(runId !== batchRunId) return;
 
         const base = buildDownloadBaseName(file.name, 'image-' + (i+1));
-        const smartOriginalKept = Boolean(blob.size >= file.size && (smartMode || canFallBackToOriginal(file, mime)));
+        const smartOriginalKept = Boolean(blob.size >= file.size && (smartMode || canFallBackToOriginal(file, mime, watermarkSettingsForFile)));
         const finalBlob = smartOriginalKept ? file : blob;
         batchItems.push({
           name: smartOriginalKept ? file.name : base + '.' + extForMime(outMime),
@@ -3488,7 +3626,8 @@ const APP_VERSION = 'v5.0.19';
           pngProcessingModeUsed:smartOriginalKept ? null : pngProcessingModeUsed,
           pngPaletteLength:smartOriginalKept ? null : pngPaletteLength,
           targetSizeMet:smartOriginalKept ? null : targetSizeMet,
-          targetSizeKB:smartOriginalKept ? null : targetSizeKBForFile
+          targetSizeKB:smartOriginalKept ? null : targetSizeKBForFile,
+          watermarkOverrideUsed:batchWatermarkOverrides.has(file)
         });
       }catch(e){
         if(runId !== batchRunId) return;
@@ -3512,6 +3651,7 @@ const APP_VERSION = 'v5.0.19';
     renderBatchList();
     updateZipAvailabilityUI();
     updateWorkspaceLayout();
+    updateWatermarkScopeUI();
 
     if(selectedBatchIndex < 0 || selectedBatchIndex >= batchSourceFiles.length){
       selectedBatchIndex = 0;
@@ -3524,9 +3664,12 @@ const APP_VERSION = 'v5.0.19';
   // other results render normally so preview and download stay aligned.
   async function selectBatchRow(index){
     if(index < 0 || index >= batchSourceFiles.length) return;
+    const nextFile = batchSourceFiles[index];
+    if(editingWatermarkFile && editingWatermarkFile !== nextFile) endWatermarkOverrideEdit();
     selectedBatchIndex = index;
     highlightSelectedBatchRow();
-    await loadFile(batchSourceFiles[index]);
+    updateWatermarkScopeUI();
+    await loadFile(nextFile);
   }
 
   function highlightSelectedBatchRow(){
@@ -3563,6 +3706,8 @@ const APP_VERSION = 'v5.0.19';
         ? `${t('savedAmountLabel')} ${rate.toFixed(0)}%`
         : (delta > 0 ? `${t('increasedAmountLabel')} ${rate.toFixed(0)}%` : t('unchangedAmountLabel'));
       const sel = idx === selectedBatchIndex ? ' selected' : '';
+      const sourceFileForRow = batchSourceFiles[idx];
+      const overrideBadge = sourceFileForRow && batchWatermarkOverrides.has(sourceFileForRow) ? `<span class="wm-override-badge">${escapeHtml(t('wmOverrideBadge'))}</span>` : '';
       const downloadBtn = `<button type="button" class="row-download" data-idx="${idx}" title="${escapeHtml(t('rowDownload'))}" aria-label="${escapeHtml(t('rowDownload'))}"${(batchProcessing || watermarkPending) ? ' disabled' : ''}><span aria-hidden="true">↓</span><span>${escapeHtml(t('rowDownload'))}</span></button>`;
       const verified = it.targetSizeMet === true
         ? `<span class="lossless-badge">✓ ${escapeHtml(t('targetSizeMet', it.targetSizeKB))}</span>`
@@ -3577,7 +3722,7 @@ const APP_VERSION = 'v5.0.19';
           : (it.losslessVerified
             ? `<span class="lossless-badge">✓ ${escapeHtml(t('pngLosslessOptimized'))}</span>`
             : '')))));
-      return `<div class="batch-row is-selectable${sel}" data-row="${idx}" tabindex="0" role="button"><div class="row-main"><span class="name">${escapeHtml(it.sourceName || it.name)}</span></div><div class="row-result"><div class="row-metrics"><span class="size-flow">${formatBytes(it.originalSize)} → ${formatBytes(it.optimizedSize)}</span>${verified}<span class="change-badge ${changeClass}">${escapeHtml(changeText)}</span></div><div class="row-actions">${downloadBtn}${removeBtn}</div></div></div>`;
+      return `<div class="batch-row is-selectable${sel}" data-row="${idx}" tabindex="0" role="button"><div class="row-main"><span class="name">${escapeHtml(it.sourceName || it.name)}</span></div><div class="row-result"><div class="row-metrics"><span class="size-flow">${formatBytes(it.originalSize)} → ${formatBytes(it.optimizedSize)}</span>${verified}${overrideBadge}<span class="change-badge ${changeClass}">${escapeHtml(changeText)}</span></div><div class="row-actions">${downloadBtn}${removeBtn}</div></div></div>`;
     }).join('');
     // Row click selects the file for the centre Preview. The buttons inside the
     // row (download, remove) must not bubble up into a selection.
@@ -3642,6 +3787,9 @@ const APP_VERSION = 'v5.0.19';
   }
   function removeBatchItem(index){
     if(index < 0 || index >= batchSourceFiles.length) return;
+    const removedFile = batchSourceFiles[index];
+    if(editingWatermarkFile === removedFile) endWatermarkOverrideEdit();
+    batchWatermarkOverrides.delete(removedFile);
     batchRunId++;
     batchProcessing = false;
     const remaining = batchSourceFiles.slice(0, index).concat(batchSourceFiles.slice(index + 1));
@@ -3661,6 +3809,7 @@ const APP_VERSION = 'v5.0.19';
     batchProcessing = false;
     if(sourceBitmap && typeof sourceBitmap.close === 'function') sourceBitmap.close();
     batchItems = []; batchSourceFiles = []; batchStale = false; selectedBatchIndex = -1;
+    batchWatermarkOverrides.clear(); editingWatermarkFile = null; wm = watermarkGlobalState.text; imageOverlay = watermarkGlobalState.image;
     $('batchList').innerHTML = ''; $('batchSummary').textContent = ''; $('batchProgress').textContent = '';
     $('batchStaleWarning').style.display = 'none'; $('zipUnavailableNotice').style.display = 'none';
     $('actionsBar').style.display = 'none'; $('summaryBar').style.display = 'none';
@@ -3675,6 +3824,7 @@ const APP_VERSION = 'v5.0.19';
     $('fileInput').value = ''; $('folderInput').value = '';
     $('overlayPreviewModal').classList.remove('open'); $('overlayPreviewModal').setAttribute('aria-hidden','true');
     renderOverlayPreview();
+    updateWatermarkScopeUI();
   }
   function requestClearBatch(){
     const hasWork = !!(sourceBitmap || sourceFile || outputBlob || batchItems.length || batchSourceFiles.length);
@@ -3703,6 +3853,9 @@ const APP_VERSION = 'v5.0.19';
     // phrase presets and other watermark values in localStorage.
     wm = { ...wmDefaults, phrases: wmDefaults.phrases.slice(), open:false };
     imageOverlay = Object.assign({}, imageOverlayDefaults);
+    watermarkGlobalState = { text: wm, image: imageOverlay };
+    batchWatermarkOverrides.clear();
+    editingWatermarkFile = null;
     if(imageOverlayBitmap && typeof imageOverlayBitmap.close==='function') imageOverlayBitmap.close();
     imageOverlayBitmap=null; imageOverlayCrop=null; imageOverlayFileName='';
     try{ localStorage.removeItem(STORAGE_KEYS.watermark); }catch(e){}
@@ -3818,8 +3971,7 @@ const APP_VERSION = 'v5.0.19';
     if(event.pointerId !== overlayDragPointerId) return;
     overlayDragPointerId = null;
     event.currentTarget.classList.remove('dragging');
-    saveWatermarkSettings();
-    if(batchSourceFiles.length) setWatermarkPending(true);
+    wmChanged();
   }
 
   function applyWatermarkConversion(){
@@ -3842,8 +3994,7 @@ const APP_VERSION = 'v5.0.19';
     if(event.key === 'ArrowUp') settings.cy -= step;
     if(event.key === 'ArrowDown') settings.cy += step;
     setOverlayCustomPoint(settings,settings.cx,settings.cy);
-    saveWatermarkSettings();
-    if(batchSourceFiles.length) setWatermarkPending(true);
+    wmChanged();
     renderOverlayPreview();
   }
   function openOverlayPreview(){
@@ -3989,6 +4140,9 @@ const APP_VERSION = 'v5.0.19';
     $('wmToggleBtn').addEventListener('click', () => {
       setWmOpen($('wmToggleBtn').getAttribute('aria-expanded') !== 'true');
     });
+    $('wmEditSelectedBtn').addEventListener('click', beginSelectedWatermarkOverride);
+    $('wmBackToGlobalBtn').addEventListener('click', endWatermarkOverrideEdit);
+    $('wmRemoveOverrideBtn').addEventListener('click', removeActiveWatermarkOverride);
     $('wmEnable').addEventListener('change', () => { if($('wmEnable').checked) requireReencodeMode(); wm.enabled = $('wmEnable').checked; updateWmBadge(); wmChanged(); renderOverlayPreview(); });
     $('wmText').addEventListener('input', () => { wm.text = $('wmText').value; updateWmFontPreview(); wmChanged(); renderOverlayPreview(); });
     $('wmFontPickerButton').addEventListener('click', () => {
@@ -4009,15 +4163,19 @@ const APP_VERSION = 'v5.0.19';
     $('wmSavePhraseBtn').addEventListener('click', () => {
       const p = String($('wmText').value || '').trim();
       if(!p) return;
-      if(!wm.phrases.includes(p)) wm.phrases.push(p);
+      if(!watermarkGlobalState.text.phrases.includes(p)) watermarkGlobalState.text.phrases.push(p);
+      wm.phrases = watermarkGlobalState.text.phrases;
       wm.text = p;
+      if(editingWatermarkFile) storeActiveWatermarkOverride();
       saveWatermarkSettings();
       renderWmPhrases();
     });
     $('wmDeletePhraseBtn').addEventListener('click', () => {
       const p = $('wmPhrases').value;
-      wm.phrases = wm.phrases.filter(x => x !== p);
-      if(!wm.phrases.length) wm.phrases = [WATERMARK_DEFAULT_TEXT];
+      watermarkGlobalState.text.phrases = watermarkGlobalState.text.phrases.filter(x => x !== p);
+      if(!watermarkGlobalState.text.phrases.length) watermarkGlobalState.text.phrases = [WATERMARK_DEFAULT_TEXT];
+      wm.phrases = watermarkGlobalState.text.phrases;
+      if(editingWatermarkFile) storeActiveWatermarkOverride();
       saveWatermarkSettings();
       renderWmPhrases();
     });
